@@ -1,6 +1,7 @@
 #include "Server.hpp"
 
-Server::Server(int port) : Socket(port) {};
+Server::Server(int port) : Socket(port) {
+};
 
 void Server::connectToSocket() {
 	if (bind(_socket_fd, (struct sockaddr *) &_address, sizeof(_address)) == -1)
@@ -10,11 +11,9 @@ void Server::connectToSocket() {
 }
 
 void Server::getNewClient() {
-	_client_fd = accept(_socket_fd, NULL, NULL);
-	if (_client_fd == -1)
+	_client_fd[_num_clients] = accept(_socket_fd, NULL, NULL);
+	if (_client_fd[_num_clients] == -1)
 		throw std::runtime_error("Failed to accept client");
+	++_num_clients;
 }
 
-void Server::sendMessage(std::string message) {
-	send(_client_fd, message.c_str(), message.size(), NORMAL);
-}

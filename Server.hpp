@@ -7,13 +7,12 @@
 class Server : public Socket {
 
 	private:
-		static constexpr int MAX_CONNECTIONS = 1;
-		int _client_fd;
+		static constexpr int MAX_CONNECTIONS = 2;
 	public:
 		Server(int port);
 		void connectToSocket() override;
 		void getNewClient();
-		void sendMessage(std::string message);
+		
 };
 
 #endif
