@@ -1,4 +1,4 @@
-NAME = app.out
+NAME = server.out
 CXX = c++
 RM = rm -f
 CXXFLAGS = -Wall -Wextra -Werror
