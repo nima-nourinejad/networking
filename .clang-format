@@ -1,0 +1,11 @@
+BasedOnStyle: LLVM
+IndentWidth: 8                    # Indentation size, set to 8 to emphasize spacing
+UseTab: Always                      # Always use tabs instead of spaces for indentation
+BreakBeforeBraces: Allman          # Always put { on a new line
+AllowShortFunctionsOnASingleLine: false # Prevent functions from being written in a single line
+ColumnLimit: 0                     # No limit on column width
+SpacesInParentheses: false          # Avoid extra spaces inside parentheses to keep things clean
+SpaceBeforeParens: Always           # Add a space before function parentheses for better readability
+SpacesInAngles: false               # Avoid spaces in template angle brackets for conciseness
+PointerAlignment: Middle             # Separate * and & from the type (e.g., std::string & name)
+IndentCaseLabels: true              # Indent case labels in switch statements
