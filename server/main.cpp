@@ -4,19 +4,20 @@
 int main()
 {
     Server server(9001);
+	server.customSignal();
 	server.makeSocketNonBlocking();
 	server.connectToSocket();
 
 	
 	std::string message;
-	while (true)
+	while (server.signal_status != SIGINT)
 	{
 		server.acceptClient();
 		if (server.getNumClients() > 0)
 		{
 			server.receiveMessage();
 			std::getline(std::cin, message);
-			if (std::cin.eof() || message == "exit")
+			if (std::cin.eof())
 				break;
 			server.sendMessage(message);
 		}

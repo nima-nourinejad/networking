@@ -1,7 +1,7 @@
 #include "Client.hpp"
 
-Client::Client (int port)
-    : Socket (port), _connected(false){};
+Client::Client (int port, std::string const & name)
+    : Socket (port, name), _connected(false){};
 void Client::connectToSocket ()
 {
 	if (!_connected)
@@ -16,7 +16,8 @@ void Client::connectToSocket ()
 
 void Client::closeSocket ()
 {
-	std::cout << "Client is shutting down" << std::endl;
+	std::cout << _name << " is shutting down" << std::endl;
+	signal (SIGINT, SIG_DFL);
 	close (_socket_fd);
 };
 
@@ -59,3 +60,5 @@ bool Client::isConnected () const
 {
 	return _connected;
 };
+
+

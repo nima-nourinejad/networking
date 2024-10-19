@@ -1,7 +1,7 @@
 #include "Socket.hpp"
 
-Socket::Socket (int port)
-    : _port (port)
+Socket::Socket (int port, std::string const & name)
+    : _port (port), _name (name)
 {
 	createSocket ();
 	setAddress ();
@@ -35,3 +35,22 @@ void Socket::makeSocketNonBlocking ()
 	if (fcntl (_socket_fd, F_SETFL, newFlags) == -1)
 		throw SocketException ("Failed to set socket flags", this);
 }
+
+void Socket::signalHandler (int signal)
+{
+	if (signal == SIGINT)
+		signal_status = SIGINT;
+}
+
+void Socket::customSignal ()
+{
+	if (signal (SIGINT, &signalHandler) == SIG_ERR)
+		throw SocketException ("Failed to set signal handler", this);
+}
+
+volatile sig_atomic_t Socket::signal_status = 0;
+
+std::string Socket::getName() const
+{
+	return _name;
+};

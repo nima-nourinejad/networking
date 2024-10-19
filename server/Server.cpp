@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
 Server::Server (int port)
-    : Socket (port), _num_clients (0){};
+    : Socket (port, "Server"), _num_clients (0){};
 
 void Server::connectToSocket ()
 {
@@ -68,7 +68,8 @@ void Server::receiveMessage ()
 
 void Server::closeSocket ()
 {
-	std::cout << "Server is shutting down" << std::endl;
+	std::cout << _name << " is shutting down" << std::endl;
+	signal (SIGINT, SIG_DFL);
 	closeClientSockets ();
 	close (_socket_fd);
 }

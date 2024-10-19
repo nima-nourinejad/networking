@@ -9,13 +9,14 @@ class Client : public Socket
 		std::string _message;
 		bool _connected;
       public:
-	Client (int port);
+	Client (int port, std::string const & name);
 	void connectToSocket () override;
 	void closeSocket () override;
 	void sendMessage (std::string message);
 	void receiveMessage ();
 	std::string getMessage () const;
 	bool isConnected () const;
+	
 };
 
 #endif

@@ -9,6 +9,7 @@
 #include <string>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <signal.h>
 #include <unistd.h>
 
 class Socket
@@ -31,9 +32,10 @@ class Socket
 	int _socket_fd;
 	struct sockaddr_in _address;
 	const int _port;
+	std::string const _name;
 
       public:
-	Socket (int port);
+	Socket (int port, std::string const & name);
 	void setAddress ();
 	void createSocket ();
 
@@ -41,6 +43,10 @@ class Socket
 	virtual void closeSocket () = 0;
 	int getSocketFD () const;
 	void makeSocketNonBlocking ();
+	std::string getName() const;
+	void customSignal();
+	static void signalHandler(int signal);
+	static volatile sig_atomic_t signal_status;
 };
 
 #endif

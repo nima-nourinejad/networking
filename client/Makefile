@@ -1,4 +1,4 @@
-NAME = client1.out
+NAME = client.app
 CXX = c++
 RM = rm -f
 CXXFLAGS = -Wall -Wextra -Werror
