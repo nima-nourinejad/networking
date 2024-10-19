@@ -7,6 +7,7 @@ class Client : public Socket
 {
 	private:
 		std::string _message;
+		bool _connected;
       public:
 	Client (int port);
 	void connectToSocket () override;
@@ -14,6 +15,7 @@ class Client : public Socket
 	void sendMessage (std::string message);
 	void receiveMessage ();
 	std::string getMessage () const;
+	bool isConnected () const;
 };
 
 #endif

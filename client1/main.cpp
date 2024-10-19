@@ -2,20 +2,26 @@
 
 int main ()
 {
-	Client client2 (9001);
-	client2.connectToSocket ();
+	Client client1 (9001);
+	client1.makeSocketNonBlocking ();
 
 	std::string message;
 	while (true)
 	{
+		client1.connectToSocket ();
 		getline (std::cin, message);
-		if (std::cin.eof ())
+		if (std::cin.eof () || message == "exit")
 			break;
-		client2.sendMessage (message);
-		client2.receiveMessage ();
-		std::cout << "Server: " << client2.getMessage () << std::endl;
+		if (client1.isConnected ())
+		{
+
+			client1.sendMessage (message);
+			client1.receiveMessage ();
+			std::cout << "Client1: I received this message from server:" << std::endl;
+			std::cout << client1.getMessage () << std::endl;
+		}
 	}
 
-	client2.closeSocket ();
+	client1.closeSocket ();
 	return 0;
 }

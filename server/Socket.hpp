@@ -14,6 +14,20 @@
 class Socket
 {
       protected:
+	constexpr bool acceptableError (int error) const
+	{
+		return (error == EAGAIN || error == EWOULDBLOCK);
+	}
+	class SocketException : public std::runtime_error
+	{
+	      public:
+		SocketException (std::string const & message, Socket * socket)
+		    : std::runtime_error (message)
+		{
+			if (socket != nullptr)
+				socket->closeSocket ();
+		};
+	};
 	int _socket_fd;
 	struct sockaddr_in _address;
 	const int _port;
@@ -26,6 +40,7 @@ class Socket
 	virtual void connectToSocket () = 0;
 	virtual void closeSocket () = 0;
 	int getSocketFD () const;
+	void makeSocketNonBlocking ();
 };
 
 #endif

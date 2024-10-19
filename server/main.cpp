@@ -4,16 +4,22 @@
 int main()
 {
     Server server(9001);
+	server.makeSocketNonBlocking();
 	server.connectToSocket();
 
-	while (server.getNumClients() < server.getMaxConnections())
-		server.acceptClient();
 	
-	for (int i = 0; i < server.getNumClients(); i++)
+	std::string message;
+	while (true)
 	{
-		server.receiveMessage(i);
-		std::cout << "Client " << i << " says: " << server.getMessage(i) << std::endl;
-		server.sendMessage("Hello from server", i);
+		server.acceptClient();
+		if (server.getNumClients() > 0)
+		{
+			server.receiveMessage();
+			std::getline(std::cin, message);
+			if (std::cin.eof() || message == "exit")
+				break;
+			server.sendMessage(message);
+		}
 	}
 
 	server.closeSocket();
