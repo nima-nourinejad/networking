@@ -28,6 +28,8 @@ int Socket::getSocketFD () const
 
 void Socket::makeSocketNonBlocking ()
 {
+	if(signal_status == SIGINT)
+		return;
 	int currentFlags = fcntl (_socket_fd, F_GETFL, 0);
 	if (currentFlags == -1)
 		throw SocketException ("Failed to get socket flags", this);

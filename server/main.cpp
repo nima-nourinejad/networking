@@ -1,28 +1,24 @@
 #include "Server.hpp"
 #include <sys/epoll.h>
 
-int main()
+int main ()
 {
-    Server server(9001);
-	server.customSignal();
-	server.makeSocketNonBlocking();
-	server.connectToSocket();
+	Server server (9001);
+	server.customSignal ();
+	server.makeSocketNonBlocking ();
+	server.connectToSocket ();
 
-	
 	std::string message;
 	while (server.signal_status != SIGINT)
 	{
-		server.acceptClient();
-		if (server.getNumClients() > 0)
-		{
-			server.receiveMessage();
-			std::getline(std::cin, message);
-			if (std::cin.eof())
-				break;
-			server.sendMessage(message);
-		}
+		server.acceptClient ();
+		server.receiveMessage ();
+		// std::getline (std::cin, message);
+		// if (std::cin.eof ())
+		// 	break;
+		server.sendMessage ("message");
 	}
 
-	server.closeSocket();
-    return 0;
+	server.closeSocket ();
+	return 0;
 }
