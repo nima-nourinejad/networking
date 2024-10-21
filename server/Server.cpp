@@ -1,24 +1,18 @@
 #include "Server.hpp"
 
 Server::Server (int port)
-    : Socket (port, "Server"), _num_clients (0){
-		std::cout << "Server is starting" << std::endl;
-		for (int i = 0; i < MAX_CONNECTIONS; ++i)
-			_client_fd[i] = -1;
-	};
+    : Socket (port, "Server"), _num_clients (0){};
 
 void Server::connectToSocket ()
 {
-	std::cout << "Server is connecting" << std::endl;
 	if (signal_status != SIGINT)
 	{
 		if (bind (_socket_fd, (struct sockaddr *)&_address, sizeof (_address)) == -1)
 			throw SocketException ("Failed to bind socket", this);
-		std::cout << _name << " is binded on port " << _port << std::endl;
 	}
 	if (signal_status != SIGINT)
 	{
-		if (listen (_socket_fd, MAX_CONNECTIONS) == -1)
+		if (listen (_socket_fd, BACKLOG) == -1)
 			throw SocketException ("Failed to listen on socket", this);
 	}
 	std::cout << _name << " is listening on port " << _port << std::endl;
@@ -26,31 +20,27 @@ void Server::connectToSocket ()
 
 void Server::acceptClient ()
 {
-	if (_num_clients == MAX_CONNECTIONS)
+	if (_num_clients >= MAX_CONNECTIONS)
+		return ;
+	for (int i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
 	{
-		std::cout << "Server is full" << std::endl;
-		return;
-	}
-	if (_num_clients < MAX_CONNECTIONS)
-		std::cout << "Server is accepting clients" << std::endl;
-	for (int i = 0; (i < _num_clients && signal_status != SIGINT); ++i)
-	{
-		if (_client_fd[i] == -1)
+		if (_clients[i].connected == false)
 		{
-			_client_fd[i] = accept (_socket_fd, NULL, NULL);
-			if (_client_fd[i] == -1)
+			_clients[i].fd = accept (_socket_fd, NULL, NULL);
+			if (_clients[i].fd == -1)
 			{
+				
 				if (!acceptableError (errno))
 					throw SocketException ("Failed to accept client", this);
-				else{
-					std::cout << "connection in progress" << std::endl;
+				else
 					break;
-				}
 			}
 			else
 			{
-				std::cout << "Client " << i << " connected" << std::endl;
+				_clients[i].connected = true;
 				++_num_clients;
+				std::string reply = "Connction successful";
+				send (_clients[i].fd, reply.c_str (), reply.size (), 0);
 			}
 		}
 	}
@@ -59,61 +49,68 @@ void Server::acceptClient ()
 void Server::sendMessage (std::string message)
 {
 	if (_num_clients == 0)
-	{
-		std::cout << "No clients connected to send message" << std::endl;
 		return;
-	}
-	std::cout << "Server is sending message" << std::endl;
 	ssize_t bytes_sent;
-	for (int i = 0; (i < _num_clients && signal_status != SIGINT); ++i)
+	for (int i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
 	{
-		if (_client_fd[i] != -1)
+		if (_clients[i].connected == true && _clients[i].received == true && _clients[i].sent == false)
 		{
-			std::string reply = "Server: I got this message from you: " + _message[i] + ". My reply is: " + message;
-			bytes_sent =  send (_client_fd[i], reply.c_str (), reply.size (), 0);
+			std::string reply = message;
+			bytes_sent =  send (_clients[i].fd, reply.c_str (), reply.size (), 0);
 			if (bytes_sent == -1)
 			{
 				if (!acceptableError (errno))
 					throw SocketException ("Failed to send message", this);
 			}
+			else
+			{
+				std::cout << "Sent message to client " << i + 1 << std::endl;
+				_clients[i].sent = true;
+				_clients[i].received = false;
+			}
 		}
 	}
 }
+
+
 void Server::receiveMessage ()
 {
 	if (_num_clients == 0)
-	{
-		std::cout << "No clients connected to receive message" << std::endl;
 		return;
-	}
-	std::cout << "Server is receiving message" << std::endl;
-
 
 	char buffer[1024];
 	ssize_t bytes_received;
 
-	for (int i = 0; (i < _num_clients && signal_status != SIGINT); ++i)
+	for (int i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
 	{
-		if (_client_fd[i] != -1)
+		if (_clients[i].connected == true && _clients[i].received == false)
 		{
 			memset (buffer, 0, sizeof (buffer));
 
-			bytes_received = recv (_client_fd[i], buffer, sizeof (buffer), 0);
+			bytes_received = recv (_clients[i].fd, buffer, sizeof (buffer), 0);
 			if (bytes_received == -1)
 			{
 				if (!acceptableError (errno))
 					throw SocketException ("Failed to receive message", this);
 			}
-			else if (bytes_received == 0)
+			if (bytes_received == 0)
 			{
-				std::cout << "Client " << i << " disconnected" << std::endl;
-				close (_client_fd[i]);
-				_client_fd[i] = -1;
+				std::cout << "Client " << i + 1 << " disconnected" << std::endl;
+				std::cout << "Closing client " << i + 1 << std::endl;
+				close (_clients[i].fd);
+				_clients[i].fd = -1;
+				_clients[i].connected = false;
+				_clients[i].sent = false;
+				_clients[i].received = false;
+				--_num_clients;
 			}
 			else
 			{
-				std::cout << "Received message from client " << i << std::endl;
-				_message[i] = buffer;
+				std::cout << "Received message from client " << i + 1 << std::endl;
+				_clients[i].message = buffer;
+				_clients[i].received = true;
+				_clients[i].sent = false;
+				std::cout << "Message from client " << i + 1 << " : " << _clients[i].message << std::endl;
 			}
 		}
 	}
@@ -121,7 +118,7 @@ void Server::receiveMessage ()
 
 void Server::closeSocket ()
 {
-	std::cout << _name << " is shutting down" << std::endl;
+	std::cout << std::endl << _name << " is shutting down" << std::endl;
 	signal (SIGINT, SIG_DFL);
 	closeClientSockets ();
 	close (_socket_fd);
@@ -129,25 +126,30 @@ void Server::closeSocket ()
 
 std::string Server::getMessage (int index) const
 {
-	return _message[index];
+	return _clients[index].message;
 }
 
 void Server::closeClientSockets ()
 {
-	for (int i = 0; i < _num_clients; ++i)
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 	{
-		if (_client_fd[i] != -1)
+		if (_clients[i].connected == true)
 		{
-			close (_client_fd[i]);
-			_client_fd[i] = -1;
+			std::cout << "Closing client " << i + 1 << std::endl;
+			close (_clients[i].fd);
+			_num_clients--;
+			_clients[i].fd = -1;
+			_clients[i].connected = false;
+			_clients[i].sent = false;
+			_clients[i].received = false;
 		}
+		
 	}
-	_num_clients = 0;
 }
 
 int Server::getClientFD (int index) const
 {
-	return _client_fd[index];
+	return _clients[index].fd;
 }
 
 int Server::getNumClients () const
@@ -158,4 +160,26 @@ int Server::getNumClients () const
 int Server::getMaxConnections () const
 {
 	return MAX_CONNECTIONS;
+}
+
+int Server::numRecievedMessages() const
+{
+	int count = 0;
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+	{
+		if (_clients[i].received == true)
+			count++;
+	}
+	return count;
+}
+
+int Server::numSentMessages() const
+{
+	int count = 0;
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+	{
+		if (_clients[i].sent == true)
+			count++;
+	}
+	return count;
 }

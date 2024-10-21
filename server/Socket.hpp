@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
+#include <errno.h>
 
 class Socket
 {
@@ -19,15 +20,26 @@ class Socket
 	{
 		return (error == EAGAIN || error == EWOULDBLOCK);
 	}
+
+	class ClientConnection
+	{
+		public:
+		int fd;
+		bool connected;
+		bool sent;
+		bool received;
+		std::string message;
+		ClientConnection () : fd (-1), connected (false), sent (false), received (false){};
+	};
 	class SocketException : public std::runtime_error
 	{
 	      public:
-		SocketException (std::string const & message, Socket * socket)
-		    : std::runtime_error (message)
-		{
-			if (socket != nullptr)
-				socket->closeSocket ();
-		};
+			SocketException (std::string const & message, Socket * socket)
+				: std::runtime_error (message)
+			{
+				if (socket != nullptr)
+					socket->closeSocket ();
+			};
 	};
 	int _socket_fd;
 	struct sockaddr_in _address;

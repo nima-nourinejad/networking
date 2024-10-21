@@ -12,11 +12,23 @@ int main ()
 	while (server.signal_status != SIGINT)
 	{
 		server.acceptClient ();
-		server.receiveMessage ();
-		// std::getline (std::cin, message);
-		// if (std::cin.eof ())
-		// 	break;
-		server.sendMessage ("message");
+		if (server.getNumClients () > 0)
+		{
+			if (server.numRecievedMessages () < server.getNumClients ())
+			{
+				std::cout << "Waiting for messages" << std::endl;
+				server.receiveMessage ();
+			}
+			if (server.numSentMessages () < server.getNumClients ())
+			{
+				std::cout << "Enter message to send to the clients: ";
+				std::getline (std::cin, message);
+				if (std::cin.eof ())
+					break;
+				server.sendMessage (message);
+			}
+			
+		}
 	}
 
 	server.closeSocket ();
