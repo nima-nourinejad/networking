@@ -30,9 +30,19 @@ void Client::connectToSocket ()
 			std::cout << message << std::endl;
 			_client.connected = true;
 			_client.fd = _socket_fd;
+			addEpollEvent();
 		}
 	}
 };
+
+void Client::addEpollEvent()
+{
+	_event.events = EPOLLIN | EPOLLET;
+	_event.data.fd = _socket_fd;
+	_event.data.ptr = &_client;
+	if (epoll_ctl(_fd_epoll, EPOLL_CTL_ADD, _socket_fd, &_event) == -1)
+		throw SocketException ("Failed to add epoll event", this);
+}
 
 void Client::closeSocket ()
 {
@@ -43,21 +53,35 @@ void Client::closeSocket ()
 	_client.received = false;
 	_client.message.clear ();
 	_client.fd = -1;
+	removeEpollEvent(_socket_fd);
+	close (_fd_epoll);
 	close (_socket_fd);
 };
 
-void Client::sendMessage (std::string message)
+
+std::string Client::getMessage () const
 {
-	if (!_client.connected || _client.sent || signal_status == SIGINT)
-		return;
-	_client.sent = true;
-	_client.received = false;
-	send (_socket_fd, message.c_str (), message.size (), 0);
+	return _client.message;
+};
+
+bool Client::isConnected () const
+{
+	return _client.connected;
+};
+
+bool Client::isReceived () const
+{
+	return _client.received;
+};
+
+bool Client::isSent () const
+{
+	return _client.sent;
 };
 
 void Client::receiveMessage ()
 {
-	if (!_client.connected || !_client.sent || _client.received || signal_status == SIGINT)
+	if (!_client.connected || signal_status == SIGINT)
 		return;
 	char buffer[1024];
 	memset (buffer, 0, sizeof (buffer));
@@ -82,26 +106,53 @@ void Client::receiveMessage ()
 		_client.sent = false;
 		_client.received = true;
 		_client.message = buffer;
-		std::cout << "I received this message from server:" << _client.message << std::endl; 
+		std::cout << "I received this message from server:" <<  std::endl << _client.message << std::endl; 
 	}
 };
 
-std::string Client::getMessage () const
+void Client::sendMessage (std::string message)
 {
-	return _client.message;
+	if (!_client.connected || signal_status == SIGINT)
+		return;
+	_client.sent = true;
+	_client.received = false;
+	send (_socket_fd, message.c_str (), message.size (), 0);
 };
 
-bool Client::isConnected () const
+int Client::howManyEventsShouldbeHandled()
 {
-	return _client.connected;
-};
+	int n_ready_fds = epoll_wait(_fd_epoll, &_event, 1, 1000);
+	if (n_ready_fds == -1)
+	{
+		if (errno == EINTR)
+			return 0;
+		else
+			throw SocketException ("Failed to wait for events", this);
+	}
+	return n_ready_fds;
+}
 
-bool Client::isReceived () const
+struct  epoll_event * Client::getEvents()
 {
-	return _client.received;
-};
+	return &_event;
+}
 
-bool Client::isSent () const
+
+void Client::handleEvents()
 {
-	return _client.sent;
-};
+	if (signal_status == SIGINT || !_client.connected)
+		return;
+	int n_ready_fds = howManyEventsShouldbeHandled();
+	if (_event.events & EPOLLOUT || n_ready_fds == 0)
+	{
+		std::string message;
+		std::cout << "Enter a message to send to server: ";
+		std::getline (std::cin, message);
+		if (std::cin.eof ())
+			signal_status = SIGINT;
+		else
+			sendMessage (message);
+	}
+	else if (_event.events & EPOLLIN)
+		receiveMessage();
+}

@@ -5,6 +5,7 @@ Socket::Socket (int port, std::string const & name)
 {
 	createSocket ();
 	setAddress ();
+	createEpoll();
 }
 
 void Socket::createSocket ()
@@ -56,3 +57,16 @@ std::string Socket::getName() const
 {
 	return _name;
 };
+
+void Socket::createEpoll()
+{
+	_fd_epoll = epoll_create1(0);
+	if (_fd_epoll == -1)
+		throw SocketException ("Failed to create epoll", this);
+}
+
+void Socket::removeEpollEvent(int fd)
+{
+	if (epoll_ctl(_fd_epoll, EPOLL_CTL_DEL, fd, nullptr) == -1)
+		throw SocketException ("Failed to remove epoll event", this);
+}

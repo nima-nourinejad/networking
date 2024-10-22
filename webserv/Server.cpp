@@ -42,8 +42,8 @@ void Server::acceptClient ()
 				++_num_clients;
 				addEpollEvent (_clients[i].fd, &_events[i], i);
 				std::cout << "Accepted client " << i + 1 << std::endl;
-				std::string reply = "Connction successful";
-				send (_clients[i].fd, reply.c_str (), reply.size (), 0);
+				// std::string reply = "Connction successful";
+				// send (_clients[i].fd, reply.c_str (), reply.size (), 0);
 			}
 		}
 	}
@@ -317,8 +317,13 @@ void Server::sendMessage (int index, std::string message)
 void Server::sendMessage (ClientConnection * client)
 {
 	int index = client->index;
-	std::string reply = "Server: I got this message: " + _clients[index].message;
-	sendMessage (index, reply);	
+	// std::string reply = "Server: I got this message: " + _clients[index].message;
+	// sendMessage (index, reply);
+	std::string html_content = "<html><body><h1>Hello from the Server!</h1></body></html>";
+	std::string response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
+	sendMessage(index, response);
+
+	
 }
 
 void Server::receiveMessage(ClientConnection * client)

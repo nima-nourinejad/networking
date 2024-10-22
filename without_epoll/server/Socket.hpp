@@ -15,50 +15,50 @@
 
 class Socket
 {
-      protected:
-	constexpr bool acceptableError (int error) const
-	{
-		return (error == EAGAIN || error == EWOULDBLOCK);
-	}
+    protected:
+		constexpr bool acceptableError (int error) const
+		{
+			return (error == EAGAIN || error == EWOULDBLOCK);
+		}
 
-	class ClientConnection
-	{
-		public:
-		int fd;
-		bool connected;
-		bool sent;
-		bool received;
-		std::string message;
-		ClientConnection () : fd (-1), connected (false), sent (false), received (false){};
-	};
-	class SocketException : public std::runtime_error
-	{
-	      public:
-			SocketException (std::string const & message, Socket * socket)
-				: std::runtime_error (message)
-			{
-				if (socket != nullptr)
-					socket->closeSocket ();
-			};
-	};
-	int _socket_fd;
-	struct sockaddr_in _address;
-	const int _port;
-	std::string const _name;
+		class ClientConnection
+		{
+			public:
+				int fd;
+				bool connected;
+				bool sent;
+				bool received;
+				std::string message;
+				ClientConnection () : fd (-1), connected (false), sent (false), received (false){};
+		};
+		class SocketException : public std::runtime_error
+		{
+			public:
+				SocketException (std::string const & message, Socket * socket)
+					: std::runtime_error (message)
+				{
+					if (socket != nullptr)
+						socket->closeSocket ();
+				};
+		};
+		int _socket_fd;
+		struct sockaddr_in _address;
+		const int _port;
+		std::string const _name;
 
-      public:
-	Socket (int port, std::string const & name);
-	void setAddress ();
-	void createSocket ();
+    public:
+		Socket (int port, std::string const & name);
+		void setAddress ();
+		void createSocket ();
 
-	virtual void connectToSocket () = 0;
-	virtual void closeSocket () = 0;
-	int getSocketFD () const;
-	void makeSocketNonBlocking ();
-	std::string getName() const;
-	void customSignal();
-	static void signalHandler(int signal);
-	static volatile sig_atomic_t signal_status;
+		virtual void connectToSocket () = 0;
+		virtual void closeSocket () = 0;
+		int getSocketFD () const;
+		void makeSocketNonBlocking ();
+		std::string getName() const;
+		void customSignal();
+		static void signalHandler(int signal);
+		static volatile sig_atomic_t signal_status;
 };
 
 #endif
