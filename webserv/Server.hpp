@@ -2,7 +2,6 @@
 #define SERVER_HPP
 
 #include "Socket.hpp"
-#include <string>
 
 class Server : public Socket
 {
@@ -15,11 +14,12 @@ class Server : public Socket
 		struct epoll_event _events[MAX_CONNECTIONS];
 
     public:
-		Server (int port);
+		Server (int port, std::string const & host);
 		void connectToSocket () override;
 		void acceptClient ();
 		std::string getMessage (int index) const;
 		void closeSocket () override;
+		void closeClientSocket(int index);
 		void closeClientSockets ();
 		int getNumClients () const;
 		int getClientFD (int index) const;

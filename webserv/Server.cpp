@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
-Server::Server (int port)
-    : Socket (port, "Server"), _num_clients (0){};
+Server::Server (int port, std::string const & host)
+    : Socket (port, host), _num_clients (0){};
 
 void Server::connectToSocket ()
 {
@@ -15,7 +15,7 @@ void Server::connectToSocket ()
 		if (listen (_socket_fd, BACKLOG) == -1)
 			throw SocketException ("Failed to listen on socket");
 	}
-	std::cout << _name << " is listening on port " << _port << std::endl;
+	std::cout << "Server is listening on host " << _config.host << " and port " << _config.port << std::endl;
 }
 
 void Server::acceptClient ()
@@ -50,11 +50,13 @@ void Server::acceptClient ()
 
 void Server::closeSocket ()
 {
-	std::cout << std::endl << _name << " is shutting down" << std::endl;
+	std::cout << std::endl << "Server is shutting down" << std::endl;
 	signal (SIGINT, SIG_DFL);
 	closeClientSockets ();
-	close (_fd_epoll);
-	close (_socket_fd);
+	if (_fd_epoll != -1)
+		close (_fd_epoll);
+	if (_socket_fd != -1)
+		close (_socket_fd);
 }
 
 std::string Server::getMessage (int index) const
@@ -62,24 +64,25 @@ std::string Server::getMessage (int index) const
 	return _clients[index].message;
 }
 
+void Server::closeClientSocket (int index)
+{
+	if (_clients[index].connected == true && index < MAX_CONNECTIONS && index >= 0)
+	{
+		std::cout << "Closing client " << index + 1 << std::endl;
+		removeEpoll (_clients[index].fd);
+		close (_clients[index].fd);
+		_clients[index].fd = -1;
+		_clients[index].connected = false;
+		_clients[index].message = "";
+		_clients[index].index = -1;
+		--_num_clients;
+	}
+}
+
 void Server::closeClientSockets ()
 {
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
-	{
-		if (_clients[i].connected == true)
-		{
-			std::cout << "Closing client " << i + 1 << std::endl;
-			removeEpoll (_clients[i].fd);
-			_clients[i].index = 0;
-			close (_clients[i].fd);
-			_num_clients--;
-			_clients[i].fd = -1;
-			_clients[i].connected = false;
-			_clients[i].sent = false;
-			_clients[i].received = false;
-		}
-		
-	}
+		closeClientSocket (i);
 }
 
 int Server::getClientFD (int index) const
@@ -135,11 +138,7 @@ void Server::sendMessage (ClientConnection * client)
 				throw SocketException ("Failed to send message");
 		}
 		else
-		{
 			std::cout << "Sent message to client " << index + 1 << std::endl;
-			_clients[index].sent = true;
-			_clients[index].received = false;
-		}
 	}	
 }
 
@@ -148,8 +147,7 @@ void Server::receiveMessage(ClientConnection * client)
 	int index = client->index;
 	if (_clients[index].connected == false)
 		return;
-	char buffer[1024];
-	memset (buffer, 0, sizeof (buffer));
+	char buffer[1024] = {};
 	ssize_t bytes_received;
 
 	if (index < MAX_CONNECTIONS && signal_status != SIGINT)
@@ -163,21 +161,12 @@ void Server::receiveMessage(ClientConnection * client)
 		if (bytes_received == 0)
 		{
 			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
-			std::cout << "Closing client " << index + 1 << std::endl;
-			removeEpoll (_clients[index].fd);
-			close (_clients[index].fd);
-			_clients[index].fd = -1;
-			_clients[index].connected = false;
-			_clients[index].sent = false;
-			_clients[index].received = false;
-			--_num_clients;
+			closeClientSocket (index);
 		}
 		else
 		{
 			std::cout << "Received message from client " << index + 1 << std::endl;
 			_clients[index].message = buffer;
-			_clients[index].received = true;
-			_clients[index].sent = false;
 			std::cout << "Message from client " << index + 1 << " : " << _clients[index].message << std::endl;
 		}
 	}

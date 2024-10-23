@@ -2,7 +2,6 @@
 #define SOCKET_HPP
 
 #include <cstring>
-#include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <stdexcept>
@@ -11,12 +10,27 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
-#include <errno.h>
+#include <cerrno>
 #include <sys/epoll.h>
+#include <map>
+#include <netdb.h>
+
 
 class Socket
 {
     protected:
+
+		class Configration
+		{
+			public:
+				int port;
+				std::string host;
+				std::string serverName;
+				std::string errorPage;
+				size_t clientMaxBodySize;
+				std::map<std::string, std::string> routes;
+				Configration(int port, std::string const & host);
+		};
 
 		class ClientConnection
 		{
@@ -24,37 +38,33 @@ class Socket
 				int index;
 				int fd;
 				bool connected;
-				bool sent;
-				bool received;
 				std::string message;
-				ClientConnection () : index(0), fd (-1), connected (false), sent (false), received (false){};
+				ClientConnection ();
 		};
+
 		class SocketException : public std::runtime_error
 		{
 			public:
-				SocketException (std::string const & message)
-					: std::runtime_error (message + " : " + strerror(errno)){};
+				SocketException (std::string const & message);
 		};
-		int _socket_fd;
-		struct sockaddr_in _address;
-		const int _port;
-		std::string const _name;
-		int _fd_epoll;
 
-    public:
-		Socket (int port, std::string const & name);
+		Configration _config;
+		int _socket_fd;
+		int _fd_epoll;
+		struct sockaddr_in _address;
+		virtual void connectToSocket () = 0;
 		void setAddress ();
 		void createSocket ();
-
-		virtual void connectToSocket () = 0;
-		virtual void closeSocket () = 0;
-		int getSocketFD () const;
-		std::string getName() const;
-		void customSignal();
 		static void signalHandler(int signal);
-		static volatile sig_atomic_t signal_status;
 		void createEpoll();
 		void removeEpoll(int fd);
+		void customSignal();
+
+    public:
+		Socket (int port, std::string const & host);
+		virtual void closeSocket () = 0;
+		static volatile sig_atomic_t signal_status;
+
 };
 
 #endif
