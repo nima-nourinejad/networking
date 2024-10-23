@@ -54,7 +54,7 @@ class Socket
 		static void signalHandler(int signal);
 		static volatile sig_atomic_t signal_status;
 		void createEpoll();
-		void removeEpollEvent(int fd);
+		void removeEpoll(int fd);
 };
 
 #endif

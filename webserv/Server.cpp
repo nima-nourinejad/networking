@@ -40,7 +40,7 @@ void Server::acceptClient ()
 				_clients[i].connected = true;
 				_clients[i].index = i;
 				++_num_clients;
-				addEpollEvent (_clients[i].fd, &_events[i], i);
+				addEpoll (_clients[i].fd, &_events[i], i);
 				std::cout << "Accepted client " << i + 1 << std::endl;
 			}
 		}
@@ -69,7 +69,7 @@ void Server::closeClientSockets ()
 		if (_clients[i].connected == true)
 		{
 			std::cout << "Closing client " << i + 1 << std::endl;
-			removeEpollEvent (_clients[i].fd);
+			removeEpoll (_clients[i].fd);
 			_clients[i].index = 0;
 			close (_clients[i].fd);
 			_num_clients--;
@@ -103,7 +103,7 @@ struct epoll_event * Server::getEvents()
 	return _events;
 }
 
-int Server::howManyEventsShouldbeHandled()
+int Server::waitForEvents()
 {
 	int n_ready_fds = epoll_wait(_fd_epoll, _events, MAX_CONNECTIONS, 1000);
 	if (n_ready_fds == -1)
@@ -164,7 +164,7 @@ void Server::receiveMessage(ClientConnection * client)
 		{
 			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
 			std::cout << "Closing client " << index + 1 << std::endl;
-			removeEpollEvent (_clients[index].fd);
+			removeEpoll (_clients[index].fd);
 			close (_clients[index].fd);
 			_clients[index].fd = -1;
 			_clients[index].connected = false;
@@ -187,7 +187,7 @@ void Server::handleEvents()
 {
 	if (signal_status == SIGINT || _num_clients == 0)
 		return;
-	int n_ready_fds = howManyEventsShouldbeHandled();
+	int n_ready_fds = waitForEvents();
 	if (n_ready_fds == 0)
 		return;
 	int i = 0;
@@ -201,7 +201,7 @@ void Server::handleEvents()
 	}
 }
 
-void Server::addEpollEvent(int fd, struct epoll_event * event, int index)
+void Server::addEpoll(int fd, struct epoll_event * event, int index)
 {
 	event->events = EPOLLIN | EPOLLET;
 	event->data.fd = fd;

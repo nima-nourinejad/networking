@@ -25,11 +25,11 @@ class Server : public Socket
 		int getClientFD (int index) const;
 		int getMaxConnections () const;
 		void handleEvents();
-		void addEpollEvent(int fd, struct epoll_event * event, int index);
+		void addEpoll(int fd, struct epoll_event * event, int index);
 		void sendMessage(ClientConnection * client);
 		void receiveMessage(ClientConnection * client);
 		struct epoll_event * getEvents();
-		int howManyEventsShouldbeHandled();
+		int waitForEvents();
 };
 
 #endif

@@ -53,7 +53,7 @@ void Socket::createEpoll()
 		throw SocketException ("Failed to create epoll");
 }
 
-void Socket::removeEpollEvent(int fd)
+void Socket::removeEpoll(int fd)
 {
 	if (epoll_ctl(_fd_epoll, EPOLL_CTL_DEL, fd, nullptr) == -1)
 		throw SocketException ("Failed to remove epoll event");
