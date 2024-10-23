@@ -1,7 +1,7 @@
 #include "Socket.hpp"
 
-Socket::Socket (int port, std::string const & host)
-    : _config(port, host), _socket_fd(-1), _fd_epoll(-1)
+Socket::Socket (int port, std::string const & host, std::map<std::string, std::string> routes)
+    : _socket_fd(-1), _fd_epoll(-1), _config(port, host, routes)
 {
 	customSignal ();
 	createSocket ();
@@ -76,4 +76,16 @@ Socket::ClientConnection::ClientConnection()
 Socket::SocketException::SocketException(std::string const & message)
 	: std::runtime_error (message + " : " + strerror(errno)){};
 
-Socket::Configration::Configration(int port, std::string const & host): port(port), host(host){};
+Socket::Configration::Configration(int port, std::string const & host, std::map<std::string, std::string> routes): port(port), host(host), routes(routes){};
+
+
+std::string Socket::readFile(std::string const & path) const
+{
+	std::ifstream file(path.c_str());
+	if (!file.is_open())
+		throw SocketException ("Failed to open file");
+	std::stringstream read;
+	read << file.rdbuf();
+	file.close();
+	return read.str();
+}

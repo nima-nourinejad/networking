@@ -14,23 +14,15 @@
 #include <sys/epoll.h>
 #include <map>
 #include <netdb.h>
+#include <fstream>
+#include <sstream>
 
 
 class Socket
 {
     protected:
 
-		class Configration
-		{
-			public:
-				int port;
-				std::string host;
-				std::string serverName;
-				std::string errorPage;
-				size_t clientMaxBodySize;
-				std::map<std::string, std::string> routes;
-				Configration(int port, std::string const & host);
-		};
+		
 
 		class ClientConnection
 		{
@@ -48,7 +40,7 @@ class Socket
 				SocketException (std::string const & message);
 		};
 
-		Configration _config;
+		
 		int _socket_fd;
 		int _fd_epoll;
 		struct sockaddr_in _address;
@@ -59,9 +51,23 @@ class Socket
 		void createEpoll();
 		void removeEpoll(int fd);
 		void customSignal();
+		std::string readFile(std::string const & path) const;
 
     public:
-		Socket (int port, std::string const & host);
+	
+	class Configration
+		{
+			public:
+				int port;
+				std::string host;
+				std::string serverName;
+				std::string errorPage;
+				size_t clientMaxBodySize;
+				std::map <std::string, std::string> routes;
+				Configration(int port, std::string const & host, std::map<std::string, std::string> routes);
+		};
+		Configration _config;
+		Socket (int port, std::string const & host, std::map<std::string, std::string> routes);
 		virtual void closeSocket () = 0;
 		static volatile sig_atomic_t signal_status;
 

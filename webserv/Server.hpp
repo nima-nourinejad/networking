@@ -12,9 +12,11 @@ class Server : public Socket
 		int _num_clients;
 		ClientConnection _clients[MAX_CONNECTIONS];
 		struct epoll_event _events[MAX_CONNECTIONS];
+		std::string requestURI(std::string const & message) const;
+		std::string requestmethod(std::string const & message) const;
 
     public:
-		Server (int port, std::string const & host);
+		Server (int port, std::string const & host, std::map<std::string, std::string> routes);
 		void connectToSocket () override;
 		void acceptClient ();
 		std::string getMessage (int index) const;

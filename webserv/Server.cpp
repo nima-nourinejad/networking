@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
-Server::Server (int port, std::string const & host)
-    : Socket (port, host), _num_clients (0){};
+Server::Server (int port, std::string const & host, std::map<std::string, std::string> routes)
+    : Socket (port, host, std::move(routes)), _num_clients (0){};
 
 void Server::connectToSocket ()
 {
@@ -123,10 +123,26 @@ int Server::waitForEvents()
 void Server::sendMessage (ClientConnection * client)
 {
 	int index = client->index;
-	std::string html_content = "<html><body><h1>Hello from the Server!</h1></body></html>";
-	std::string message = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
 	if (_clients[index].connected == false)
 		return;
+	std::string method = requestmethod(_clients[index].message);
+	std::string uri = requestURI(_clients[index].message);
+	std::string path;
+	if (method == "GET" && uri == "/")
+		path = _config.routes.at("/");
+	else if (method == "GET" && uri == "/about")
+		path = _config.routes.at("/about");
+	else
+		path = _config.routes.at("404");
+	std::string html_content = readFile(path);
+
+	std::string message;
+	if (method == "GET" && (uri == "/" || uri == "/about"))
+		message = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
+	else
+		message = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
+	
+	
 	ssize_t bytes_sent;
 	if (index < MAX_CONNECTIONS && signal_status != SIGINT)
 	{
@@ -134,7 +150,7 @@ void Server::sendMessage (ClientConnection * client)
 		bytes_sent =  send (_clients[index].fd, reply.c_str (), reply.size (), 0);
 		if (bytes_sent == -1)
 		{
-			if (!(errno == EAGAIN || errno == EWOULDBLOCK))
+			if (errno != EAGAIN)
 				throw SocketException ("Failed to send message");
 		}
 		else
@@ -155,7 +171,7 @@ void Server::receiveMessage(ClientConnection * client)
 		bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), 0);
 		if (bytes_received == -1)
 		{
-			if (!(errno == EAGAIN || errno == EWOULDBLOCK))
+			if (errno != EAGAIN)
 				throw SocketException ("Failed to receive message");
 		}
 		if (bytes_received == 0)
@@ -197,4 +213,21 @@ void Server::addEpoll(int fd, struct epoll_event * event, int index)
 	event->data.ptr = &_clients[index];
 	if (epoll_ctl(_fd_epoll, EPOLL_CTL_ADD, fd, event) == -1)
 		throw SocketException ("Failed to add epoll event");
+}
+
+std::string Server::requestURI(std::string const & message) const
+{
+	std::istringstream stream(message);
+	std::string method;
+	std::string uri;
+	stream >> method >> uri;
+	return uri;
+}
+
+std::string Server::requestmethod(std::string const & message) const
+{
+	std::istringstream stream(message);
+	std::string method;
+	stream >> method;
+	return method;
 }

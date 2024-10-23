@@ -3,7 +3,11 @@
 
 int main ()
 {
-	Server server (9001, "127.0.0.3");
+	std::map<std::string, std::string> routes;
+	routes["/"] = "index.html";
+	routes["/about"] = "about.html";
+	routes["404"] = "404.html";
+	Server server (9001, "127.0.0.3", routes);
 	server.connectToSocket ();
 
 	try
