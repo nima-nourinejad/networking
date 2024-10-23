@@ -5,15 +5,23 @@ int main ()
 {
 	Server server (9001);
 	server.customSignal ();
-	server.makeSocketNonBlocking ();
 	server.connectToSocket ();
 
-	std::string message;
-	while (server.signal_status != SIGINT)
+	try
 	{
-		server.acceptClient ();
-		server.handleEvents ();
+		while (server.signal_status != SIGINT)
+		{
+			server.acceptClient ();
+			server.handleEvents ();
+		}
 	}
+	catch(std::exception const & e)
+	{
+		std::cerr << e.what() << std::endl;
+	}
+	
+
+	
 
 	server.closeSocket ();
 	return 0;

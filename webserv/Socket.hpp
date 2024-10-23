@@ -17,10 +17,6 @@
 class Socket
 {
     protected:
-		constexpr bool acceptableError (int error) const
-		{
-			return (error == EAGAIN || error == EWOULDBLOCK);
-		}
 
 		class ClientConnection
 		{
@@ -36,12 +32,8 @@ class Socket
 		class SocketException : public std::runtime_error
 		{
 			public:
-				SocketException (std::string const & message, Socket * socket)
-					: std::runtime_error (message)
-				{
-					if (socket != nullptr)
-						socket->closeSocket ();
-				};
+				SocketException (std::string const & message)
+					: std::runtime_error (message + " : " + strerror(errno)){};
 		};
 		int _socket_fd;
 		struct sockaddr_in _address;
@@ -57,7 +49,6 @@ class Socket
 		virtual void connectToSocket () = 0;
 		virtual void closeSocket () = 0;
 		int getSocketFD () const;
-		void makeSocketNonBlocking ();
 		std::string getName() const;
 		void customSignal();
 		static void signalHandler(int signal);

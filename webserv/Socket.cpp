@@ -10,9 +10,9 @@ Socket::Socket (int port, std::string const & name)
 
 void Socket::createSocket ()
 {
-	_socket_fd = socket (AF_INET, SOCK_STREAM, 0);
+	_socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
 	if (_socket_fd == -1)
-		throw SocketException ("Failed to create socket", nullptr);
+		throw SocketException ("Failed to create socket");
 }
 
 void Socket::setAddress ()
@@ -27,18 +27,6 @@ int Socket::getSocketFD () const
 	return _socket_fd;
 }
 
-void Socket::makeSocketNonBlocking ()
-{
-	if(signal_status == SIGINT)
-		return;
-	int currentFlags = fcntl (_socket_fd, F_GETFL, 0);
-	if (currentFlags == -1)
-		throw SocketException ("Failed to get socket flags", this);
-	int newFlags = currentFlags | O_NONBLOCK;
-	if (fcntl (_socket_fd, F_SETFL, newFlags) == -1)
-		throw SocketException ("Failed to set socket flags", this);
-}
-
 void Socket::signalHandler (int signal)
 {
 	if (signal == SIGINT)
@@ -48,7 +36,7 @@ void Socket::signalHandler (int signal)
 void Socket::customSignal ()
 {
 	if (signal (SIGINT, &signalHandler) == SIG_ERR)
-		throw SocketException ("Failed to set signal handler", this);
+		throw SocketException ("Failed to set signal handler");
 }
 
 volatile sig_atomic_t Socket::signal_status = 0;
@@ -62,11 +50,11 @@ void Socket::createEpoll()
 {
 	_fd_epoll = epoll_create1(0);
 	if (_fd_epoll == -1)
-		throw SocketException ("Failed to create epoll", this);
+		throw SocketException ("Failed to create epoll");
 }
 
 void Socket::removeEpollEvent(int fd)
 {
 	if (epoll_ctl(_fd_epoll, EPOLL_CTL_DEL, fd, nullptr) == -1)
-		throw SocketException ("Failed to remove epoll event", this);
+		throw SocketException ("Failed to remove epoll event");
 }
