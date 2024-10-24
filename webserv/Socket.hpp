@@ -16,8 +16,8 @@
 #include <netdb.h>
 #include <fstream>
 #include <sstream>
+#include <chrono>
 #include <thread>
-#include <mutex>
 
 class Socket
 {
@@ -25,16 +25,7 @@ class Socket
 
 		
 
-		class ClientConnection
-		{
-			public:
-				int index;
-				int fd;
-				bool connected;
-				std::string message;
-				std::string response;
-				ClientConnection ();
-		};
+		
 
 		class SocketException : public std::runtime_error
 		{
@@ -58,6 +49,16 @@ class Socket
 		void makeSocketReusable();
 
     public:
+
+		enum
+		{
+			DISCONNECTED,
+			CONNECTED,
+			RECEIVED,
+			PROCESSING,
+			READYTOSEND,
+			SENT
+		};
 	
 		class Configration
 		{
@@ -74,6 +75,17 @@ class Socket
 		Socket (int port, std::string const & host, std::map<std::string, std::string> routes);
 		virtual void closeSocket () = 0;
 		static volatile sig_atomic_t signal_status;
+	class ClientConnection
+		{
+			public:
+				int index;
+				int fd;
+				bool connected;
+				int status;
+				std::string message;
+				std::string response;
+				ClientConnection ();
+		};
 
 };
 

@@ -15,7 +15,9 @@ int main ()
 	{
 		while (server.signal_status != SIGINT)
 		{
-			server.acceptClient ();
+			// std::cout << "Connected clients: " << server.getNumClients () << std::endl;
+			// server.showActiveClients();
+			// std::cout << std::endl;
 			server.handleEvents ();
 		}
 	}
