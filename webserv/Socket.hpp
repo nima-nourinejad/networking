@@ -17,7 +17,6 @@
 #include <fstream>
 #include <sstream>
 
-
 class Socket
 {
     protected:
@@ -50,12 +49,13 @@ class Socket
 		static void signalHandler(int signal);
 		void createEpoll();
 		void removeEpoll(int fd);
-		void customSignal();
+		void applyCustomSignal();
 		std::string readFile(std::string const & path) const;
+		void makeSocketReusable();
 
     public:
 	
-	class Configration
+		class Configration
 		{
 			public:
 				int port;

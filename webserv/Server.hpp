@@ -3,6 +3,7 @@
 
 #include "Socket.hpp"
 
+
 class Server : public Socket
 {
 
@@ -32,6 +33,9 @@ class Server : public Socket
 		void receiveMessage(ClientConnection * client);
 		struct epoll_event * getEvents();
 		int waitForEvents();
+		std::string finfPath(std::string const & method, std::string const & uri) const;
+		std::string createResponse(std::string const & method, std::string const & uri, std::string const & bdoy) const;
+		
 };
 
 #endif

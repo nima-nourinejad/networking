@@ -119,43 +119,59 @@ int Server::waitForEvents()
 	return n_ready_fds;
 }
 
-
-void Server::sendMessage (ClientConnection * client)
+std::string Server::finfPath(std::string const & method, std::string const & uri) const
 {
-	int index = client->index;
-	if (_clients[index].connected == false)
-		return;
-	std::string method = requestmethod(_clients[index].message);
-	std::string uri = requestURI(_clients[index].message);
 	std::string path;
 	if (method == "GET" && uri == "/")
 		path = _config.routes.at("/");
 	else if (method == "GET" && uri == "/about")
 		path = _config.routes.at("/about");
+	else if (method == "GET" && uri == "/delay")
+		path = _config.routes.at("/delay");
 	else
 		path = _config.routes.at("404");
-	std::string html_content = readFile(path);
+	return path;
+}
 
-	std::string message;
+std::string Server::createResponse(std::string const & method, std::string const & uri, std::string const & body) const
+{
+	std::string response;
 	if (method == "GET" && (uri == "/" || uri == "/about"))
-		message = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
+		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+	else if (method == "GET" && uri == "/delay")
+	{
+		long long i = 0;
+		while (i < 10000000000)
+			++i;
+		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: keep-alive\r\n\r\n" + body;
+
+	}
 	else
-		message = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(html_content.size()) + "\r\nConnection: close\r\n\r\n" + html_content;
-	
+		response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+	return response;
+}
+
+
+void Server::sendMessage (ClientConnection * client)
+{
+	int index = client->index;
+	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+		return;
+	std::string method = requestmethod(_clients[index].message);
+	std::string uri = requestURI(_clients[index].message);
+	std::string path = finfPath(method, uri);
+	std::string body = readFile(path);
+	std::string response = createResponse(method, uri, body);
 	
 	ssize_t bytes_sent;
-	if (index < MAX_CONNECTIONS && signal_status != SIGINT)
+	bytes_sent =  send (_clients[index].fd, response.c_str (), response.size (), 0);
+	if (bytes_sent == -1)
 	{
-		std::string reply = message;
-		bytes_sent =  send (_clients[index].fd, reply.c_str (), reply.size (), 0);
-		if (bytes_sent == -1)
-		{
-			if (errno != EAGAIN)
-				throw SocketException ("Failed to send message");
-		}
-		else
-			std::cout << "Sent message to client " << index + 1 << std::endl;
-	}	
+		if (errno != EAGAIN)
+			throw SocketException ("Failed to send message");
+	}
+	else
+		std::cout << "Sent message to client " << index + 1 << std::endl;	
 }
 
 void Server::receiveMessage(ClientConnection * client)
@@ -231,3 +247,5 @@ std::string Server::requestmethod(std::string const & message) const
 	stream >> method;
 	return method;
 }
+
+

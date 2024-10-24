@@ -3,8 +3,9 @@
 Socket::Socket (int port, std::string const & host, std::map<std::string, std::string> routes)
     : _socket_fd(-1), _fd_epoll(-1), _config(port, host, routes)
 {
-	customSignal ();
+	applyCustomSignal ();
 	createSocket ();
+	makeSocketReusable ();
 	setAddress ();
 	createEpoll();
 }
@@ -49,7 +50,7 @@ void Socket::signalHandler (int signal)
 		signal_status = SIGINT;
 }
 
-void Socket::customSignal ()
+void Socket::applyCustomSignal ()
 {
 	if (signal (SIGINT, &signalHandler) == SIG_ERR)
 		throw SocketException ("Failed to set signal handler");
@@ -88,4 +89,11 @@ std::string Socket::readFile(std::string const & path) const
 	read << file.rdbuf();
 	file.close();
 	return read.str();
+}
+
+void Socket::makeSocketReusable()
+{
+    int reusable = 1;
+    if (setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reusable, sizeof(reusable)) == -1)
+        throw SocketException ("Failed to make socket reusable");
 }
