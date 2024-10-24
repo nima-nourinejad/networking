@@ -15,6 +15,7 @@ class Server : public Socket
 		struct epoll_event _events[MAX_CONNECTIONS];
 		std::string requestURI(std::string const & message) const;
 		std::string requestmethod(std::string const & message) const;
+		void modifyEpoll(int index, uint32_t status);
 
     public:
 		Server (int port, std::string const & host, std::map<std::string, std::string> routes);
@@ -34,7 +35,7 @@ class Server : public Socket
 		struct epoll_event * getEvents();
 		int waitForEvents();
 		std::string finfPath(std::string const & method, std::string const & uri) const;
-		std::string createResponse(std::string const & method, std::string const & uri, std::string const & bdoy) const;
+		void createResponse(int index);
 		
 };
 

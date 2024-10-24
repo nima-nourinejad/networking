@@ -97,3 +97,5 @@ void Socket::makeSocketReusable()
     if (setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reusable, sizeof(reusable)) == -1)
         throw SocketException ("Failed to make socket reusable");
 }
+
+

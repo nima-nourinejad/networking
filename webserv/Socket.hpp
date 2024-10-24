@@ -16,6 +16,8 @@
 #include <netdb.h>
 #include <fstream>
 #include <sstream>
+#include <thread>
+#include <mutex>
 
 class Socket
 {
@@ -30,6 +32,7 @@ class Socket
 				int fd;
 				bool connected;
 				std::string message;
+				std::string response;
 				ClientConnection ();
 		};
 
@@ -49,6 +52,7 @@ class Socket
 		static void signalHandler(int signal);
 		void createEpoll();
 		void removeEpoll(int fd);
+		
 		void applyCustomSignal();
 		std::string readFile(std::string const & path) const;
 		void makeSocketReusable();

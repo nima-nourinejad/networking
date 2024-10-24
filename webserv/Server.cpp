@@ -41,6 +41,7 @@ void Server::acceptClient ()
 				_clients[i].index = i;
 				++_num_clients;
 				addEpoll (_clients[i].fd, &_events[i], i);
+				modifyEpoll (i, EPOLLIN);
 				std::cout << "Accepted client " << i + 1 << std::endl;
 			}
 		}
@@ -133,74 +134,81 @@ std::string Server::finfPath(std::string const & method, std::string const & uri
 	return path;
 }
 
-std::string Server::createResponse(std::string const & method, std::string const & uri, std::string const & body) const
+
+void Server::createResponse(int index)
 {
-	std::string response;
-	if (method == "GET" && (uri == "/" || uri == "/about"))
-		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
-	else if (method == "GET" && uri == "/delay")
-	{
-		long long i = 0;
-		while (i < 10000000000)
-			++i;
-		response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: keep-alive\r\n\r\n" + body;
-
-	}
-	else
-		response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
-	return response;
-}
-
-
-void Server::sendMessage (ClientConnection * client)
-{
-	int index = client->index;
 	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	std::string method = requestmethod(_clients[index].message);
 	std::string uri = requestURI(_clients[index].message);
 	std::string path = finfPath(method, uri);
 	std::string body = readFile(path);
-	std::string response = createResponse(method, uri, body);
+	if (method == "GET" && (uri == "/" || uri == "/about"))
+	{
+		_clients[index].response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+		modifyEpoll (index, EPOLLOUT);
+	}
+	else if (method == "GET" && uri == "/delay")
+	{
+		long long i = 0;
+		while (i < 10000000000)
+			++i;
+		_clients[index].response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: keep-alive\r\n\r\n" + body;
+		modifyEpoll (index, EPOLLOUT);
+	}
+	else
+	{
+		_clients[index].response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+		modifyEpoll (index, EPOLLOUT);
+	}
 	
+}
+
+void Server::sendMessage (ClientConnection * client)
+{
+	int index = client->index;
+	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+		return;
 	ssize_t bytes_sent;
-	bytes_sent =  send (_clients[index].fd, response.c_str (), response.size (), 0);
+	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), 0);
 	if (bytes_sent == -1)
 	{
 		if (errno != EAGAIN)
 			throw SocketException ("Failed to send message");
 	}
 	else
-		std::cout << "Sent message to client " << index + 1 << std::endl;	
+	{
+		std::cout << "Sent message to client " << index + 1 << std::endl;
+	}
+	modifyEpoll (index, EPOLLIN);
+
 }
 
 void Server::receiveMessage(ClientConnection * client)
 {
 	int index = client->index;
-	if (_clients[index].connected == false)
+	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	char buffer[1024] = {};
 	ssize_t bytes_received;
-
-	if (index < MAX_CONNECTIONS && signal_status != SIGINT)
+	bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), 0);
+	if (bytes_received == -1)
 	{
-		bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), 0);
-		if (bytes_received == -1)
-		{
-			if (errno != EAGAIN)
-				throw SocketException ("Failed to receive message");
-		}
-		if (bytes_received == 0)
-		{
-			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
-			closeClientSocket (index);
-		}
-		else
-		{
-			std::cout << "Received message from client " << index + 1 << std::endl;
-			_clients[index].message = buffer;
-			std::cout << "Message from client " << index + 1 << " : " << _clients[index].message << std::endl;
-		}
+		if (errno != EAGAIN)
+			throw SocketException ("Failed to receive message");
+	}
+	if (bytes_received == 0)
+	{
+		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+		closeClientSocket (index);
+	}
+	else
+	{
+		std::cout << "Received message from client " << index + 1 << std::endl;
+		modifyEpoll (index, 0);
+		_clients[index].message = buffer;
+		std::cout << "Message from client " << index + 1 << " : " << _clients[index].message << std::endl;
+		createResponse(index);
 	}
 }
 
@@ -215,10 +223,9 @@ void Server::handleEvents()
 	for (i = 0 ; i < n_ready_fds; i++)
 	{
 		if (_events[i].events & EPOLLIN)
-		{
 			receiveMessage ((ClientConnection *)_events[i].data.ptr);
+		if (_events[i].events & EPOLLOUT)
 			sendMessage ((ClientConnection *)_events[i].data.ptr);
-		}
 	}
 }
 
@@ -248,4 +255,9 @@ std::string Server::requestmethod(std::string const & message) const
 	return method;
 }
 
-
+void Server::modifyEpoll(int index, uint32_t status)
+{
+	_events[index].events = status;
+	if (epoll_ctl(_fd_epoll, EPOLL_CTL_MOD, _clients[index].fd, &_events[index]) == -1)
+		throw SocketException ("Failed to modify epoll event");
+}
