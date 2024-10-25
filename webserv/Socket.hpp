@@ -47,6 +47,7 @@ class Socket
 		void applyCustomSignal();
 		std::string readFile(std::string const & path) const;
 		void makeSocketReusable();
+		void setReceiveTimeout();
 
     public:
 

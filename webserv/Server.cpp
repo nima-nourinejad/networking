@@ -111,7 +111,8 @@ void Server::acceptClient ()
 				_clients[i].fd = temp.fd;
 				_clients[i].connected = true;
 				_clients[i].index = i;
-				++_num_clients;_clients[i].status = CONNECTED;
+				++_num_clients;
+				_clients[i].status = CONNECTED;
 				// addEpoll (_clients[i].fd, &_events[i], i);
 				addEpoll (_clients[i].fd, i);
 				
@@ -237,13 +238,28 @@ void Server::sendMessage (ClientConnection * client)
 	int index = client->index;
 	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
-	std::cout << "Client status: " << _clients[index].status << std::endl;
 	ssize_t bytes_sent;
 	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), 0);
 	if (bytes_sent > 0)
 	{
-		std::cout << "Sent message to client " << index + 1 << std::endl;
-		closeClientSocket (index);
+		std::cout << "Sent message to client. I do a trial recv with the hope to recive 0 and close gracefully" << index + 1 << std::endl;
+		
+		bool notFinished = receiveMessage(_clients[index]);
+		if (notFinished)
+		{
+			std::cout << "Client " << index + 1 << " is still connected" << std::endl;
+			_clients[index].status = RECEIVED;
+			std::cout << "Received a new message from client " << index + 1 << std::endl;
+			_clients[index].status = PROCESSING;
+			createResponse(index);
+		}
+		else
+		{
+			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+			closeClientSocket (index);
+		}
+
+		// closeClientSocket (index);
 		// _clients[index].status = CONNECTED;
 		// modifyEpoll (index, EPOLLIN);
 	}
@@ -302,9 +318,9 @@ int Server::getClientStatus(struct epoll_event const & event) const
 	ClientConnection *target = (ClientConnection *)event.data.ptr;
 	std::cout << "Client being checked is number: " << target->index + 1 << std::endl;
 	if (target->status == READYTOSEND)
-		std::cout << "Client is ready to send response" << std::endl;
+		std::cout << "The response is ready to send" << std::endl;
 	else
-		std::cout << "Client is not ready to send" << std::endl;
+		std::cout << "The response is not ready to send" << std::endl;
 	return target->status;
 }
 

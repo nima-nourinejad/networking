@@ -6,6 +6,7 @@ Socket::Socket (int port, std::string const & host, std::map<std::string, std::s
 	applyCustomSignal ();
 	createSocket ();
 	makeSocketReusable ();
+	setReceiveTimeout ();
 	setAddress ();
 	createEpoll();
 }
@@ -96,6 +97,15 @@ void Socket::makeSocketReusable()
     int reusable = 1;
     if (setsockopt(_socket_fd, SOL_SOCKET, SO_REUSEADDR, &reusable, sizeof(reusable)) == -1)
         throw SocketException ("Failed to make socket reusable");
+}
+
+void Socket::setReceiveTimeout()
+{
+	struct timeval timeout;
+	timeout.tv_sec = 2;
+	timeout.tv_usec = 0;
+	if (setsockopt(_socket_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == -1)
+		throw SocketException ("Failed to set receive timeout");
 }
 
 
