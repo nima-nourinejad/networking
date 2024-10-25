@@ -9,13 +9,13 @@ class Server : public Socket
 
     private:
 		static constexpr int MAX_CONNECTIONS = 5;
-		static constexpr int BACKLOG = MAX_CONNECTIONS;
+		static constexpr int BACKLOG = (2 * MAX_CONNECTIONS);
 		int _num_clients;
 		
 		
 		std::string requestURI(std::string const & message) const;
 		std::string requestmethod(std::string const & message) const;
-		void modifyEpoll(int index, uint32_t status);
+		// void modifyEpoll(int index, uint32_t status);
 		
 
     public:
@@ -28,9 +28,11 @@ class Server : public Socket
 		void closeClientSockets ();
 		int getNumClients () const;
 		void handleEvents();
-		void addEpoll(int fd, struct epoll_event * event, int index);
+		// void addEpoll(int fd, struct epoll_event * event, int index);
+		void addEpoll(int fd, int index);
 		void sendMessage(ClientConnection * client);
 		void receiveMessage(ClientConnection * client);
+		bool receiveMessage(ClientConnection & client);
 		int waitForEvents();
 		std::string finfPath(std::string const & method, std::string const & uri) const;
 		void createResponse(int index);
