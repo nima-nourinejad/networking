@@ -22,18 +22,6 @@
 class Socket
 {
     protected:
-		class ClientConnection
-			{
-				public:
-					int index;
-					int fd;
-					bool connected;
-					int status;
-					time_t lastActivity;
-					std::string request;
-					std::string response;
-					ClientConnection ();
-			};
 		class SocketException : public std::runtime_error
 		{
 			public:
@@ -78,6 +66,18 @@ class Socket
 				std::map <std::string, std::string> routes;
 				Configration(int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		};
+		class ClientConnection
+			{
+				public:
+					int index;
+					int fd;
+					bool connected;
+					int status;
+					time_t lastActivity;
+					std::string request;
+					std::string response;
+					ClientConnection ();
+			};
 		Configration _config;
 		Socket (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		virtual void closeSocket () = 0;
