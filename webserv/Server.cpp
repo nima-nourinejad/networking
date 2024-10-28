@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
-Server::Server (int port, std::string const & host, std::map<std::string, std::string> routes)
-    : Socket (port, host, std::move(routes)), _num_clients (0){};
+Server::Server (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes)
+    : Socket (port, host, errorPage, maxBodySize, routes), _num_clients (0){};
 
 void Server::connectToSocket ()
 {
