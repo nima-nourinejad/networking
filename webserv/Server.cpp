@@ -104,6 +104,7 @@ void Server::closeClientSocket (int index)
 		_clients[index].fd = -1;
 		_clients[index].connected = false;
 		_clients[index].status = DISCONNECTED;
+		_clients[index].lastActivity = 0;
 		_clients[index].request.clear();
 		_clients[index].response.clear();
 		_clients[index].index = -1;
@@ -182,6 +183,7 @@ void Server::sendMessage (ClientConnection * client)
 	{
 		std::cout << "Sent message to client: " << index + 1 << std::endl;
 		_clients[index].status = CONNECTED;
+		_clients[index].lastActivity = getCurrentTime();
 	}
 }
 
@@ -203,6 +205,7 @@ void Server::receiveMessage(ClientConnection * client)
 	{
 		std::cout << "Received message from client " << index + 1 << std::endl;
 		_clients[index].status = RECEIVED;
+		_clients[index].lastActivity = getCurrentTime();
 		_clients[index].request = buffer;
 	}
 }
