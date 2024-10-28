@@ -295,6 +295,18 @@ int Server::getClientIndex(struct epoll_event const & event) const
 	return target->index;
 }
 
+void Server::handleTimeouts(int index)
+{
+	std::cout << "Client " << index + 1 << " timed out" << std::endl;
+	if (_clients[index].responseParts.empty() == false)
+	{
+		_clients[index].status = RECEIVED;
+		createResponseParts(index);
+	}
+	else
+		closeClientSocket (index);
+}
+
 
 void Server::handleEvents()
 {
@@ -314,11 +326,7 @@ void Server::handleEvents()
 			{
 				if (getPassedTime(index) > 10)
 				{
-					std::cout << "Client " << index + 1 << " timed out" << std::endl;
-					if (_clients[index].responseParts.empty() == false)
-						createResponseParts(index);
-					else
-						closeClientSocket (index);
+					handleTimeouts(index);
 				}
 				else
 				{
