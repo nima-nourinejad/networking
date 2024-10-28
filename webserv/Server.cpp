@@ -128,7 +128,7 @@ int Server::getNumClients () const
 
 int Server::waitForEvents()
 {
-	int n_ready_fds = epoll_wait(_fd_epoll, _ready, MAX_CONNECTIONS + 1, 1000);
+	int n_ready_fds = epoll_wait(_fd_epoll, _ready, MAX_CONNECTIONS + 1, -1);
 	if (n_ready_fds == -1)
 	{
 		if (errno == EINTR)
@@ -270,8 +270,7 @@ void Server::receiveMessage(ClientConnection * client)
 		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
 		closeClientSocket (index);
 	}
-	else
-	if (bytes_received > 0)
+	else if (bytes_received > 0)
 	{
 		std::cout << "Received message from client " << index + 1 << std::endl;
 		_clients[index].status = RECEIVED;
@@ -298,7 +297,7 @@ int Server::getClientIndex(struct epoll_event const & event) const
 void Server::handleTimeouts(int index)
 {
 	std::cout << "Client " << index + 1 << " timed out" << std::endl;
-	if (_clients[index].responseParts.empty() == false)
+	if (_clients[index].request.empty() == false)
 	{
 		_clients[index].status = RECEIVED;
 		createResponseParts(index);
