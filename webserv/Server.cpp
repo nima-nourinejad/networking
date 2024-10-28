@@ -250,6 +250,7 @@ void Server::sendResponseParts (ClientConnection * client)
 		if (_clients[index].responseParts.empty())
 		{
 			std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
+			_clients[index].request.clear();
 			_clients[index].status = CONNECTED;
 			_clients[index].connectTime = getCurrentTime();
 		}
@@ -314,7 +315,10 @@ void Server::handleEvents()
 				if (getPassedTime(index) > 10)
 				{
 					std::cout << "Client " << index + 1 << " timed out" << std::endl;
-					closeClientSocket (index);
+					if (_clients[index].responseParts.empty() == false)
+						createResponseParts(index);
+					else
+						closeClientSocket (index);
 				}
 				else
 				{
