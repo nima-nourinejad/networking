@@ -72,7 +72,7 @@ class Socket
 					int fd;
 					bool connected;
 					int status;
-					time_t lastActivity;
+					time_t lastRequest;
 					std::string request;
 					std::string response;
 					std::vector<std::string> responseParts;
