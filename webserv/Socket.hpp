@@ -22,18 +22,24 @@
 class Socket
 {
     protected:
-
-		
-
-		
-
+		class ClientConnection
+			{
+				public:
+					int index;
+					int fd;
+					bool connected;
+					int status;
+					time_t lastActivity;
+					std::string request;
+					std::string response;
+					ClientConnection ();
+			};
 		class SocketException : public std::runtime_error
 		{
 			public:
 				SocketException (std::string const & message);
 		};
 
-		
 		int _socket_fd;
 		int _fd_epoll;
 		struct sockaddr_in _address;
@@ -47,7 +53,6 @@ class Socket
 		void applyCustomSignal();
 		std::string readFile(std::string const & path) const;
 		void makeSocketReusable();
-		void setReceiveTimeout();
 		time_t getCurrentTime() const;
 		
 
@@ -77,18 +82,7 @@ class Socket
 		Socket (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		virtual void closeSocket () = 0;
 		static volatile sig_atomic_t signal_status;
-	class ClientConnection
-		{
-			public:
-				int index;
-				int fd;
-				bool connected;
-				int status;
-				time_t lastActivity;
-				std::string request;
-				std::string response;
-				ClientConnection ();
-		};
+	
 
 };
 

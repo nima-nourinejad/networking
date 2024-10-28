@@ -17,7 +17,6 @@ class Server : public Socket
 		std::string requestmethod(std::string const & message) const;
 		time_t getPassedTime(int index) const;
 		int getClientIndex(struct epoll_event const & event) const;
-		// void modifyEpoll(int index, uint32_t status);
 		
 
     public:
@@ -30,16 +29,13 @@ class Server : public Socket
 		void closeClientSockets ();
 		int getNumClients () const;
 		void handleEvents();
-		// void addEpoll(int fd, struct epoll_event * event, int index);
 		void addEpoll(int fd, int index);
 		void sendMessage(ClientConnection * client);
 		void receiveMessage(ClientConnection * client);
-		bool receiveMessage(ClientConnection & client);
 		int waitForEvents();
 		std::string finfPath(std::string const & method, std::string const & uri) const;
 		void createResponse(int index);
 		int getClientStatus(struct epoll_event const & event) const;
-		void showActiveClients();
 		ClientConnection _clients[MAX_CONNECTIONS];
 		struct epoll_event _events[MAX_CONNECTIONS + 1];
 		struct epoll_event _ready[MAX_CONNECTIONS + 1];
