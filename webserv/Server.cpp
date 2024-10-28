@@ -275,7 +275,7 @@ std::string Server::finfPath(std::string const & method, std::string const & uri
 	else if (method == "GET" && uri == "/delay")
 		path = _config.routes.at("/delay");
 	else
-		path = _config.routes.at("404");
+		path = _config.errorPage;
 	return path;
 }
 
