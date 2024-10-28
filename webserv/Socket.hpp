@@ -16,8 +16,7 @@
 #include <netdb.h>
 #include <fstream>
 #include <sstream>
-#include <chrono>
-#include <thread>
+#include <vector>
 
 class Socket
 {
@@ -76,6 +75,7 @@ class Socket
 					time_t lastActivity;
 					std::string request;
 					std::string response;
+					std::vector<std::string> responseParts;
 					ClientConnection ();
 			};
 		Configration _config;

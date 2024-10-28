@@ -63,7 +63,7 @@ void Server::acceptClient ()
 		}
 		else
 		{
-				std::cout << "Accepted client " << i + 1 << std::endl;
+				std::cout << "Accepted client " << i + 1 << ". Waiting for the rquest" << std::endl;
 				_clients[i].fd = temp.fd;
 				_clients[i].connected = true;
 				_clients[i].index = i;
@@ -107,6 +107,7 @@ void Server::closeClientSocket (int index)
 		_clients[index].lastActivity = 0;
 		_clients[index].request.clear();
 		_clients[index].response.clear();
+		_clients[index].responseParts.clear();
 		_clients[index].index = -1;
 		--_num_clients;
 	}
@@ -138,18 +139,28 @@ int Server::waitForEvents()
 	return n_ready_fds;
 }
 
-std::string Server::finfPath(std::string const & method, std::string const & uri) const
+std::string Server::findPath(std::string const & method, std::string const & uri) const
 {
 	std::string path;
 	if (method == "GET" && uri == "/")
 		path = _config.routes.at("/");
 	else if (method == "GET" && uri == "/about")
 		path = _config.routes.at("/about");
-	else if (method == "GET" && uri == "/delay")
-		path = _config.routes.at("/delay");
+	else if (method == "GET" && uri == "/long")
+		path = _config.routes.at("/long");
 	else
 		path = _config.errorPage;
 	return path;
+}
+
+std::string Server::createStatusLine(std::string const & method, std::string const & uri) const
+{
+	std::string statusLine;
+	if (method == "GET" && (uri == "/" || uri == "/about" || uri == "/long"))
+		statusLine = "HTTP/1.1 200 OK\r\n";
+	else
+		statusLine = "HTTP/1.1 404 Not Found\r\n";
+	return statusLine;
 }
 
 void Server::createResponse(int index)
@@ -160,13 +171,52 @@ void Server::createResponse(int index)
 	std::cout << "Method: " << method << std::endl;
 	std::string uri = requestURI(_clients[index].request);
 	std::cout << "URI: " << uri << std::endl;
-	std::string path = finfPath(method, uri);
+	std::string path = findPath(method, uri);
 	std::cout << "Path: " << path << std::endl;
 	std::string body = readFile(path);
 	if (method == "GET" && (uri == "/" || uri == "/about"))
 		_clients[index].response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
 	else
 		_clients[index].response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
+	_clients[index].status = READYTOSEND;
+	std::cout << "Response created for client " << index + 1 << std::endl;
+}
+
+
+void Server::createResponseParts(int index)
+{
+	_clients[index].status = PROCESSING;
+	std::cout << "Creating response for client " << index + 1 << std::endl;
+	std::string method = requestmethod(_clients[index].request);
+	std::cout << "Method: " << method << std::endl;
+	std::string uri = requestURI(_clients[index].request);
+	std::cout << "URI: " << uri << std::endl;
+	std::string path = findPath(method, uri);
+	std::cout << "Path: " << path << std::endl;
+	std::string statusLine = createStatusLine(method, uri);
+	std::string contentType = "Content-Type: text/html\r\n";
+	std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
+	std::string connection = "Connection: keep-alive\r\n";
+	std::string body = readFile(path);
+
+	_clients[index].responseParts.push_back(statusLine + contentType + transferEncoding + connection + "\r\n");
+
+	size_t chunkSize;
+	std::string chunk;
+	std::stringstream sstream;
+
+	while (body.size() > 0)
+	{
+		chunkSize = std::min(body.size(), _config.maxBodySize);
+		chunk = body.substr(0, chunkSize);
+		sstream.str("");
+		sstream << std::hex << chunkSize << "\r\n";
+		sstream << chunk << "\r\n";
+		_clients[index].responseParts.push_back(sstream.str());
+		body = body.substr(chunkSize);
+	}
+
+	_clients[index].responseParts.push_back("0\r\n\r\n");
 	_clients[index].status = READYTOSEND;
 	std::cout << "Response created for client " << index + 1 << std::endl;
 }
@@ -184,6 +234,25 @@ void Server::sendMessage (ClientConnection * client)
 		std::cout << "Sent message to client: " << index + 1 << std::endl;
 		_clients[index].status = CONNECTED;
 		_clients[index].lastActivity = getCurrentTime();
+	}
+}
+
+void Server::sendResponseParts (ClientConnection * client)
+{
+	int index = client->index;
+	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+		return;
+	ssize_t bytes_sent;
+	bytes_sent =  send (_clients[index].fd, _clients[index].responseParts[0].c_str(), _clients[index].responseParts[0].size (), MSG_DONTWAIT);
+	if (bytes_sent > 0)
+	{
+		_clients[index].responseParts.erase(_clients[index].responseParts.begin());
+		_clients[index].lastActivity = getCurrentTime();
+		if (_clients[index].responseParts.empty())
+		{
+			std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
+			_clients[index].status = CONNECTED;
+		}
 	}
 }
 
@@ -226,6 +295,7 @@ int Server::getClientIndex(struct epoll_event const & event) const
 	return target->index;
 }
 
+
 void Server::handleEvents()
 {
 	int n_ready_fds = waitForEvents();
@@ -242,7 +312,7 @@ void Server::handleEvents()
 			index = getClientIndex(_ready[i]);
 			if (getClientStatus(_ready[i]) == CONNECTED)
 			{
-				if (getPassedTime(index) > 5)
+				if (getPassedTime(index) > 10)
 				{
 					std::cout << "Client " << index + 1 << " timed out" << std::endl;
 					closeClientSocket (index);
@@ -255,12 +325,12 @@ void Server::handleEvents()
 			}
 			else if (getClientStatus(_ready[i]) == RECEIVED)
 			{
-				createResponse(index);
+				createResponseParts(index);
 			}
 			else if (getClientStatus(_ready[i]) == READYTOSEND)
 			{
 				if (_ready[i].events & EPOLLOUT)
-					sendMessage ((ClientConnection *)_events[i].data.ptr);
+					sendResponseParts ((ClientConnection *)_events[i].data.ptr);
 			}
 		}
 	}

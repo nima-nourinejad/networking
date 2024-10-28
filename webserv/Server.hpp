@@ -31,10 +31,13 @@ class Server : public Socket
 		void handleEvents();
 		void addEpoll(int fd, int index);
 		void sendMessage(ClientConnection * client);
+		void sendResponseParts(ClientConnection * client);
 		void receiveMessage(ClientConnection * client);
 		int waitForEvents();
-		std::string finfPath(std::string const & method, std::string const & uri) const;
+		std::string findPath(std::string const & method, std::string const & uri) const;
 		void createResponse(int index);
+		void createResponseParts(int index);
+		std::string createStatusLine(std::string const & method, std::string const & uri) const;
 		int getClientStatus(struct epoll_event const & event) const;
 		ClientConnection _clients[MAX_CONNECTIONS];
 		struct epoll_event _events[MAX_CONNECTIONS + 1];
