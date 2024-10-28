@@ -15,6 +15,8 @@ class Server : public Socket
 		
 		std::string requestURI(std::string const & message) const;
 		std::string requestmethod(std::string const & message) const;
+		time_t getPassedTime(int index) const;
+		int getClientIndex(struct epoll_event const & event) const;
 		// void modifyEpoll(int index, uint32_t status);
 		
 

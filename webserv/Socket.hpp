@@ -48,6 +48,8 @@ class Socket
 		std::string readFile(std::string const & path) const;
 		void makeSocketReusable();
 		void setReceiveTimeout();
+		time_t getCurrentTime() const;
+		
 
     public:
 
@@ -83,6 +85,7 @@ class Socket
 				int fd;
 				bool connected;
 				int status;
+				time_t lastActivity;
 				std::string message;
 				std::string response;
 				ClientConnection ();

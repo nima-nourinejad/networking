@@ -53,6 +53,81 @@ void Server::connectToSocket ()
 
 // }
 
+// void Server::acceptClient ()
+// {
+// 	std::cout << "Recieved EPOLLIN event on listening socket" << std::endl;
+// 	if (_num_clients >= MAX_CONNECTIONS)
+// 	{
+// 		std::cout << "Max clients reached" << std::endl;
+// 		return ;
+// 	}
+// 	bool noPendingConnections = false;
+// 	while (noPendingConnections == false)
+// 	{
+// 		std::cout << "It seems there are pending connections" << std::endl;
+// 		ClientConnection temp;
+	
+// 		bool available = false;
+// 		int i;
+// 		for (i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
+// 		{
+// 			if (_clients[i].connected == false && _clients[i].fd == -1 && _clients[i].index == -1 
+// 				&& _clients[i].status == DISCONNECTED)
+// 				{
+// 					available = true;
+// 					break;
+// 				}
+// 		}
+// 		if (available == false)
+// 			throw SocketException ("Failed to find availbe slot. Contridiction wiht check of _num_clients");
+// 		std::cout << "There is empty slot for client so I try accept" << std::endl;
+// 		temp.fd = accept (_socket_fd, NULL, NULL);
+// 		if (temp.fd == -1)
+// 		{
+// 			std::cout << "accept returnning -1" << std::endl;
+			
+// 			if (errno != EAGAIN)
+// 				throw SocketException ("Failed to accept client");
+// 			else
+// 			{
+// 				noPendingConnections = true;
+// 				std::cout << "No pending connections anymore" << std::endl;
+// 				break;
+// 			}
+// 		}
+// 		else
+// 		{
+// 			std::cout << "Accept was successful so i try to recv to make sure we are dealing with a real connection" << std::endl;
+// 			bool real_connection = receiveMessage(temp);
+// 			if (!real_connection)
+// 			{
+// 				std::cout << "Not a real connection" << std::endl;
+// 				close (temp.fd);
+// 			}
+// 			else
+// 			{
+// 				std::cout << "It is a real connection" << std::endl;
+// 				std::cout << "Accepted client " << i + 1 << std::endl;
+// 				_clients[i].fd = temp.fd;
+// 				_clients[i].connected = true;
+// 				_clients[i].index = i;
+// 				++_num_clients;
+// 				_clients[i].status = CONNECTED;
+// 				// addEpoll (_clients[i].fd, &_events[i], i);
+// 				addEpoll (_clients[i].fd, i);
+				
+// 				std::cout << "Store the massage previously received in the client number " << i + 1 << std::endl;
+// 				_clients[i].status = RECEIVED;
+// 				_clients[i].message = temp.message;
+// 				// modifyEpoll (i, 0);
+// 				_clients[i].status = PROCESSING;
+// 				createResponse(i);
+// 			}
+// 		}
+// 	}
+
+// }
+
 void Server::acceptClient ()
 {
 	std::cout << "Recieved EPOLLIN event on listening socket" << std::endl;
@@ -97,16 +172,16 @@ void Server::acceptClient ()
 		}
 		else
 		{
-			std::cout << "Accept was successful so i try to recv to make sure we are dealing with a real connection" << std::endl;
-			bool real_connection = receiveMessage(temp);
-			if (!real_connection)
-			{
-				std::cout << "Not a real connection" << std::endl;
-				close (temp.fd);
-			}
-			else
-			{
-				std::cout << "It is a real connection" << std::endl;
+			// std::cout << "Accept was successful so i try to recv to make sure we are dealing with a real connection" << std::endl;
+			// bool real_connection = receiveMessage(temp);
+			// if (!real_connection)
+			// {
+			// 	std::cout << "Not a real connection" << std::endl;
+			// 	close (temp.fd);
+			// }
+			// else
+			// {
+			// 	std::cout << "It is a real connection" << std::endl;
 				std::cout << "Accepted client " << i + 1 << std::endl;
 				_clients[i].fd = temp.fd;
 				_clients[i].connected = true;
@@ -115,14 +190,15 @@ void Server::acceptClient ()
 				_clients[i].status = CONNECTED;
 				// addEpoll (_clients[i].fd, &_events[i], i);
 				addEpoll (_clients[i].fd, i);
+				_clients[i].lastActivity = getCurrentTime();
 				
-				std::cout << "Store the massage previously received in the client number " << i + 1 << std::endl;
-				_clients[i].status = RECEIVED;
-				_clients[i].message = temp.message;
-				// modifyEpoll (i, 0);
-				_clients[i].status = PROCESSING;
-				createResponse(i);
-			}
+			// 	std::cout << "Store the massage previously received in the client number " << i + 1 << std::endl;
+			// 	_clients[i].status = RECEIVED;
+			// 	_clients[i].message = temp.message;
+			// 	// modifyEpoll (i, 0);
+			// 	_clients[i].status = PROCESSING;
+			// 	createResponse(i);
+			// }
 		}
 	}
 
@@ -206,6 +282,7 @@ std::string Server::finfPath(std::string const & method, std::string const & uri
 
 void Server::createResponse(int index)
 {
+	_clients[index].status = PROCESSING;
 	std::cout << "Creating response for client " << index + 1 << std::endl;
 	std::string method = requestmethod(_clients[index].message);
 	std::cout << "Method: " << method << std::endl;
@@ -232,6 +309,42 @@ void Server::createResponse(int index)
 	
 }
 
+// void Server::sendMessage (ClientConnection * client)
+// {
+// 	std::cout << "Sending message to client " << client->index + 1 << std::endl;
+// 	int index = client->index;
+// 	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+// 		return;
+// 	ssize_t bytes_sent;
+// 	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), MSG_DONTWAIT);
+// 	if (bytes_sent > 0)
+// 	{
+// 		std::cout << "Sent message to client. I do a trial recv with the hope to recive 0 and close gracefully" << index + 1 << std::endl;
+		
+// 		bool notFinished = receiveMessage(_clients[index]);
+// 		if (notFinished)
+// 		{
+// 			std::cout << "Client " << index + 1 << " is still connected" << std::endl;
+// 			_clients[index].status = RECEIVED;
+// 			std::cout << "Received a new message from client " << index + 1 << std::endl;
+// 			_clients[index].status = PROCESSING;
+// 			createResponse(index);
+// 		}
+// 		else
+// 		{
+// 			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+// 			closeClientSocket (index);
+// 		}
+
+// 		// closeClientSocket (index);
+// 		// _clients[index].status = CONNECTED;
+// 		// modifyEpoll (index, EPOLLIN);
+// 	}
+	
+
+// }
+
+
 void Server::sendMessage (ClientConnection * client)
 {
 	std::cout << "Sending message to client " << client->index + 1 << std::endl;
@@ -239,25 +352,26 @@ void Server::sendMessage (ClientConnection * client)
 	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	ssize_t bytes_sent;
-	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), 0);
+	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), MSG_DONTWAIT);
 	if (bytes_sent > 0)
 	{
-		std::cout << "Sent message to client. I do a trial recv with the hope to recive 0 and close gracefully" << index + 1 << std::endl;
+		std::cout << "Sent message to client: " << index + 1 << std::endl;
+		_clients[index].status = CONNECTED;
 		
-		bool notFinished = receiveMessage(_clients[index]);
-		if (notFinished)
-		{
-			std::cout << "Client " << index + 1 << " is still connected" << std::endl;
-			_clients[index].status = RECEIVED;
-			std::cout << "Received a new message from client " << index + 1 << std::endl;
-			_clients[index].status = PROCESSING;
-			createResponse(index);
-		}
-		else
-		{
-			std::cout << "Client " << index + 1 << " disconnected" << std::endl;
-			closeClientSocket (index);
-		}
+		// bool notFinished = receiveMessage(_clients[index]);
+		// if (notFinished)
+		// {
+		// 	std::cout << "Client " << index + 1 << " is still connected" << std::endl;
+		// 	_clients[index].status = RECEIVED;
+		// 	std::cout << "Received a new message from client " << index + 1 << std::endl;
+		// 	_clients[index].status = PROCESSING;
+		// 	createResponse(index);
+		// }
+		// else
+		// {
+		// 	std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+		// 	closeClientSocket (index);
+		// }
 
 		// closeClientSocket (index);
 		// _clients[index].status = CONNECTED;
@@ -274,7 +388,7 @@ void Server::receiveMessage(ClientConnection * client)
 		return;
 	char buffer[1024] = {};
 	ssize_t bytes_received;
-	bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), 0);
+	bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), MSG_DONTWAIT);
 	if (bytes_received == 0)
 	{
 		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
@@ -287,8 +401,8 @@ void Server::receiveMessage(ClientConnection * client)
 		_clients[index].status = RECEIVED;
 		// modifyEpoll (index, 0);
 		_clients[index].message = buffer;
-		_clients[index].status = PROCESSING;
-		createResponse(index);
+		// _clients[index].status = PROCESSING;
+		// createResponse(index);
 	}
 }
 
@@ -297,7 +411,7 @@ bool Server::receiveMessage(ClientConnection & client)
 	char buffer[1024] = {};
 	ssize_t bytes_received;
 	std::cout << "Before conducting trial recv" << std::endl;
-	bytes_received = recv (client.fd, buffer, sizeof (buffer), 0);
+	bytes_received = recv (client.fd, buffer, sizeof (buffer), MSG_DONTWAIT);
 	std::cout << "After conducting trial recv" << std::endl;
 	std::cout << "Bytes received: " << bytes_received << std::endl;
 	if (bytes_received > 0)
@@ -310,37 +424,99 @@ bool Server::receiveMessage(ClientConnection & client)
 
 int Server::getClientStatus(struct epoll_event const & event) const
 {
-	std::cout << "Recieved EPOLLOUT event" << std::endl;
-	std::cout << "Getting client status" << std::endl;
+	// std::cout << "Recieved EPOLLOUT event" << std::endl;
+	// std::cout << "Getting client status" << std::endl;
 	if (event.data.fd == _socket_fd || event.data.ptr == nullptr)
 		return -1;
-	std::cout << "It belogns to a client" << std::endl;
+	// std::cout << "It belogns to a client" << std::endl;
 	ClientConnection *target = (ClientConnection *)event.data.ptr;
-	std::cout << "Client being checked is number: " << target->index + 1 << std::endl;
-	if (target->status == READYTOSEND)
-		std::cout << "The response is ready to send" << std::endl;
-	else
-		std::cout << "The response is not ready to send" << std::endl;
+	// std::cout << "Client being checked is number: " << target->index + 1 << std::endl;
+	// if (target->status == READYTOSEND)
+	// 	std::cout << "The response is ready to send" << std::endl;
+	// else
+	// 	std::cout << "The response is not ready to send" << std::endl;
 	return target->status;
+}
+
+int Server::getClientIndex(struct epoll_event const & event) const
+{
+	if (event.data.fd == _socket_fd || event.data.ptr == nullptr)
+		return -1;
+	ClientConnection *target = (ClientConnection *)event.data.ptr;
+	return target->index;
 }
 
 void Server::handleEvents()
 {
 	// if (signal_status == SIGINT)
 	// 	return;
-	std::cout << "Calling waitForEvents" << std::endl;
+	// std::cout << "Calling waitForEvents" << std::endl;
 	int n_ready_fds = waitForEvents();
 	// if (n_ready_fds == 0)
 	// 	return;
-	std::cout << "Received " << n_ready_fds << " events" << std::endl;
+	// std::cout << "Received " << n_ready_fds << " events" << std::endl;
+	int index;
 	for (int i = 0 ; i < n_ready_fds; i++)
 	{
-		if ((_ready[i].events & EPOLLIN) && _ready[i].data.fd == _socket_fd)
+		if (_ready[i].data.fd == _socket_fd)
+		{
+			if (_ready[i].events & EPOLLIN)
 				acceptClient ();
-		if ((_ready[i].events & EPOLLOUT) && _ready[i].data.fd != _socket_fd && getClientStatus(_ready[i]) == READYTOSEND)
-			sendMessage ((ClientConnection *)_events[i].data.ptr);
+		}
+		else
+		{
+			index = getClientIndex(_ready[i]);
+			if (getClientStatus(_ready[i]) == CONNECTED)
+			{
+				if (getPassedTime(index) > 5)
+				{
+					std::cout << "Client " << index + 1 << " timed out" << std::endl;
+					closeClientSocket (index);
+				}
+				else
+				{
+					if (_ready[i].events & EPOLLIN)
+						receiveMessage ((ClientConnection *)_events[i].data.ptr);
+				}
+			}
+			else if (getClientStatus(_ready[i]) == RECEIVED)
+			{
+				createResponse(index);
+			}
+			else if (getClientStatus(_ready[i]) == READYTOSEND)
+			{
+				if (_ready[i].events & EPOLLOUT)
+					sendMessage ((ClientConnection *)_events[i].data.ptr);
+			}
+
+
+
+		}
+		
+		// if ((_ready[i].events & EPOLLOUT) && _ready[i].data.fd != _socket_fd && getClientStatus(_ready[i]) == READYTOSEND)
+		// 	sendMessage ((ClientConnection *)_events[i].data.ptr);
 	}
 }
+
+
+//good
+// void Server::handleEvents()
+// {
+// 	// if (signal_status == SIGINT)
+// 	// 	return;
+// 	std::cout << "Calling waitForEvents" << std::endl;
+// 	int n_ready_fds = waitForEvents();
+// 	// if (n_ready_fds == 0)
+// 	// 	return;
+// 	std::cout << "Received " << n_ready_fds << " events" << std::endl;
+// 	for (int i = 0 ; i < n_ready_fds; i++)
+// 	{
+// 		if ((_ready[i].events & EPOLLIN) && _ready[i].data.fd == _socket_fd)
+// 				acceptClient ();
+// 		if ((_ready[i].events & EPOLLOUT) && _ready[i].data.fd != _socket_fd && getClientStatus(_ready[i]) == READYTOSEND)
+// 			sendMessage ((ClientConnection *)_events[i].data.ptr);
+// 	}
+// }
 
 // void Server::addEpoll(int fd, struct epoll_event * event, int index)
 // {
@@ -372,7 +548,7 @@ void Server::addEpoll(int fd, int index)
 	}
 	else
 	{
-		_events[index].events = EPOLLOUT;
+		_events[index].events = EPOLLIN | EPOLLOUT;
 		_events[index].data.fd = fd;
 		_events[index].data.ptr = &_clients[index];
 		if (epoll_ctl(_fd_epoll, EPOLL_CTL_ADD, fd, _events + index) == -1)
@@ -416,4 +592,12 @@ void Server::showActiveClients()
 			std::cout << "FD: " << _clients[i].fd << std::endl;
 		}
 	}
+}
+
+time_t Server::getPassedTime(int index) const
+{
+	time_t current_time = getCurrentTime();
+	if (current_time == -1)
+		throw SocketException ("Failed to get passed time");
+	return (difftime(current_time, _clients[index].lastActivity));
 }
