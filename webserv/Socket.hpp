@@ -86,7 +86,7 @@ class Socket
 				bool connected;
 				int status;
 				time_t lastActivity;
-				std::string message;
+				std::string request;
 				std::string response;
 				ClientConnection ();
 		};

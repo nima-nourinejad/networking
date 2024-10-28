@@ -24,7 +24,7 @@ class Server : public Socket
 		Server (int port, std::string const & host, std::map<std::string, std::string> routes);
 		void connectToSocket () override;
 		void acceptClient ();
-		std::string getMessage (int index) const;
+		std::string getRequest (int index) const;
 		void closeSocket () override;
 		void closeClientSocket(int index);
 		void closeClientSockets ();

@@ -217,9 +217,9 @@ void Server::closeSocket ()
 		close (_socket_fd);
 }
 
-std::string Server::getMessage (int index) const
+std::string Server::getRequest (int index) const
 {
-	return _clients[index].message;
+	return _clients[index].request;
 }
 
 void Server::closeClientSocket (int index)
@@ -232,7 +232,7 @@ void Server::closeClientSocket (int index)
 		_clients[index].fd = -1;
 		_clients[index].connected = false;
 		_clients[index].status = DISCONNECTED;
-		_clients[index].message.clear();
+		_clients[index].request.clear();
 		_clients[index].response.clear();
 		_clients[index].index = -1;
 		--_num_clients;
@@ -284,9 +284,9 @@ void Server::createResponse(int index)
 {
 	_clients[index].status = PROCESSING;
 	std::cout << "Creating response for client " << index + 1 << std::endl;
-	std::string method = requestmethod(_clients[index].message);
+	std::string method = requestmethod(_clients[index].request);
 	std::cout << "Method: " << method << std::endl;
-	std::string uri = requestURI(_clients[index].message);
+	std::string uri = requestURI(_clients[index].request);
 	std::cout << "URI: " << uri << std::endl;
 	std::string path = finfPath(method, uri);
 	std::cout << "Path: " << path << std::endl;
@@ -400,7 +400,7 @@ void Server::receiveMessage(ClientConnection * client)
 		std::cout << "Received message from client " << index + 1 << std::endl;
 		_clients[index].status = RECEIVED;
 		// modifyEpoll (index, 0);
-		_clients[index].message = buffer;
+		_clients[index].request = buffer;
 		// _clients[index].status = PROCESSING;
 		// createResponse(index);
 	}
@@ -416,7 +416,7 @@ bool Server::receiveMessage(ClientConnection & client)
 	std::cout << "Bytes received: " << bytes_received << std::endl;
 	if (bytes_received > 0)
 	{
-		client.message = buffer;
+		client.request = buffer;
 		return true;
 	}
 	return false;
@@ -587,7 +587,7 @@ void Server::showActiveClients()
 	{
 		if (_clients[i].connected == true)
 		{	std::cout << "Client " << i + 1 << std::endl;
-			std::cout << "Message: " << _clients[i].message << std::endl;
+			std::cout << "Message: " << _clients[i].request << std::endl;
 			std::cout << "Response: " << _clients[i].response << std::endl;
 			std::cout << "FD: " << _clients[i].fd << std::endl;
 		}
