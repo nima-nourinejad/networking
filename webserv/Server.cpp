@@ -70,7 +70,7 @@ void Server::acceptClient ()
 				++_num_clients;
 				_clients[i].status = CONNECTED;
 				addEpoll (_clients[i].fd, i);
-				_clients[i].lastRequest = getCurrentTime();
+				_clients[i].connectTime = getCurrentTime();
 		}
 	}
 
@@ -104,7 +104,7 @@ void Server::closeClientSocket (int index)
 		_clients[index].fd = -1;
 		_clients[index].connected = false;
 		_clients[index].status = DISCONNECTED;
-		_clients[index].lastRequest = 0;
+		_clients[index].connectTime = 0;
 		_clients[index].request.clear();
 		_clients[index].response.clear();
 		_clients[index].responseParts.clear();
@@ -233,7 +233,7 @@ void Server::sendMessage (ClientConnection * client)
 	{
 		std::cout << "Sent message to client: " << index + 1 << std::endl;
 		_clients[index].status = CONNECTED;
-		_clients[index].lastRequest = getCurrentTime();
+		_clients[index].connectTime = getCurrentTime();
 	}
 }
 
@@ -251,7 +251,7 @@ void Server::sendResponseParts (ClientConnection * client)
 		{
 			std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
 			_clients[index].status = CONNECTED;
-			_clients[index].lastRequest = getCurrentTime();
+			_clients[index].connectTime = getCurrentTime();
 		}
 	}
 }
@@ -372,5 +372,5 @@ time_t Server::getPassedTime(int index) const
 	time_t current_time = getCurrentTime();
 	if (current_time == -1)
 		throw SocketException ("Failed to get passed time");
-	return (difftime(current_time, _clients[index].lastRequest));
+	return (difftime(current_time, _clients[index].connectTime));
 }
