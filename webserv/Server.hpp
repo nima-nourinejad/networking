@@ -35,7 +35,6 @@ class Server : public Socket
 		int getNumClients () const;
 		void handleEvents();
 		void addEpoll(int fd, int index);
-		void sendMessage(ClientConnection * client);
 		void sendResponseParts(ClientConnection * client);
 		void receiveMessage(ClientConnection * client);
 		int waitForEvents();

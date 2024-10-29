@@ -70,7 +70,6 @@ class Socket
 				public:
 					int index;
 					int fd;
-					bool connected;
 					int status;
 					bool chunkedRecive;
 					time_t connectTime;

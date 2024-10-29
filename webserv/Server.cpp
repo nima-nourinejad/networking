@@ -37,8 +37,7 @@ void Server::acceptClient ()
 		int i;
 		for (i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
 		{
-			if (_clients[i].connected == false && _clients[i].fd == -1 && _clients[i].index == -1 
-				&& _clients[i].status == DISCONNECTED)
+			if (_clients[i].status == DISCONNECTED && _clients[i].fd == -1 && _clients[i].index == -1)
 				{
 					available = true;
 					break;
@@ -65,7 +64,6 @@ void Server::acceptClient ()
 		{
 				std::cout << "Accepted client " << i + 1 << ". Waiting for the rquest" << std::endl;
 				_clients[i].fd = temp.fd;
-				_clients[i].connected = true;
 				_clients[i].index = i;
 				++_num_clients;
 				_clients[i].status = CONNECTED;
@@ -96,13 +94,12 @@ std::string Server::getRequest (int index) const
 
 void Server::closeClientSocket (int index)
 {
-	if (_clients[index].connected == true && index < MAX_CONNECTIONS && index >= 0)
+	if (_clients[index].fd != -1 && index < MAX_CONNECTIONS && index >= 0)
 	{
 		std::cout << "Closing client " << index + 1 << std::endl;
 		removeEpoll (_clients[index].fd);
 		close (_clients[index].fd);
 		_clients[index].fd = -1;
-		_clients[index].connected = false;
 		_clients[index].status = DISCONNECTED;
 		_clients[index].connectTime = 0;
 		_clients[index].request.clear();
@@ -222,26 +219,10 @@ void Server::createResponseParts(int index)
 	std::cout << "Response created for client " << index + 1 << std::endl;
 }
 
-void Server::sendMessage (ClientConnection * client)
-{
-	std::cout << "Sending message to client " << client->index + 1 << std::endl;
-	int index = client->index;
-	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
-		return;
-	ssize_t bytes_sent;
-	bytes_sent =  send (_clients[index].fd, _clients[index].response.c_str (), _clients[index].response.size (), MSG_DONTWAIT);
-	if (bytes_sent > 0)
-	{
-		std::cout << "Sent message to client: " << index + 1 << std::endl;
-		_clients[index].status = CONNECTED;
-		_clients[index].connectTime = getCurrentTime();
-	}
-}
-
 void Server::sendResponseParts (ClientConnection * client)
 {
 	int index = client->index;
-	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+	if (_clients[index].fd == -1 || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	ssize_t bytes_sent;
 	bytes_sent =  send (_clients[index].fd, _clients[index].responseParts[0].c_str(), _clients[index].responseParts[0].size (), MSG_DONTWAIT);
@@ -338,7 +319,7 @@ void Server::handleChunkedEncoding(int index)
 void Server::receiveMessage(ClientConnection * client)
 {
 	int index = client->index;
-	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
+	if (_clients[index].fd == -1 || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	char buffer[16384] = {};
 	std::string stringBuffer;
