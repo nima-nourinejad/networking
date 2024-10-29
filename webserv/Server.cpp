@@ -179,6 +179,7 @@ void Server::createResponse(int index)
 	else
 		_clients[index].response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string(body.size()) + "\r\nConnection: close\r\n\r\n" + body;
 	_clients[index].status = READYTOSEND;
+	_clients[index].request.clear();
 	std::cout << "Response created for client " << index + 1 << std::endl;
 }
 
@@ -257,12 +258,90 @@ void Server::sendResponseParts (ClientConnection * client)
 	}
 }
 
+
+void Server::changeRequestToNotFound(int index)
+{
+	_clients[index].request.clear();
+	_clients[index].request = "Get /notfound HTTP/1.1\r\n";
+	_clients[index].status = RECEIVED;
+	_clients[index].chunkedRecive = false;
+}
+
+void Server::grabChunkedHeader(std::string & unProcessed, std::string & header, int index)
+{
+	header = unProcessed.substr(0, unProcessed.find("\r\n\r\n") + 4);
+	unProcessed = unProcessed.substr(unProcessed.find("\r\n\r\n") + 4);
+	_clients[index].request = header;
+}
+
+size_t Server::getChunkedSize(std::string & unProcessed, int index)
+{
+	size_t chunkedSize;
+	std::string sizeString;
+	sizeString = unProcessed.substr(0, unProcessed.find("\r\n"));
+	unProcessed = unProcessed.substr(unProcessed.find("\r\n") + 2);
+	try
+	{
+		chunkedSize = std::stoul(sizeString, nullptr, 16);
+		
+	}
+	catch(...)
+	{
+		changeRequestToNotFound(index);
+		return 0;
+	}
+	if (unProcessed.size() < chunkedSize + 2)
+	{
+		changeRequestToNotFound(index);
+		return 0;
+	}
+	return chunkedSize;
+		
+}
+
+void Server::grabChunkedData(std::string & unProcessed, size_t chunkedSize, int index)
+{
+	std::string data;
+	data = unProcessed.substr(0, chunkedSize);
+	_clients[index].request += data;
+	unProcessed = unProcessed.substr(chunkedSize + 2);
+}
+
+void Server::handleChunkedEncoding(int index)
+{
+	std::string unProcessed = _clients[index].request;
+	_clients[index].request.clear();
+	if (unProcessed.find("Transfer-Encoding: chunked") == std::string::npos || unProcessed.find("\r\n\r\n") == std::string::npos)
+		return(changeRequestToNotFound(index));
+	std::string header = "";
+	grabChunkedHeader(unProcessed, header, index);
+	
+	
+	size_t chunkedSize;
+	while (true)
+	{
+		if (unProcessed.find("\r\n") == std::string::npos)
+			return(changeRequestToNotFound(index));
+		chunkedSize = getChunkedSize(unProcessed, index);
+		if (chunkedSize == 0)
+		{
+			_clients[index].status = RECEIVED;
+			_clients[index].chunkedRecive = false;
+			return;
+		}
+		else
+			grabChunkedData(unProcessed, chunkedSize, index);
+	}
+
+}
+
 void Server::receiveMessage(ClientConnection * client)
 {
 	int index = client->index;
 	if (_clients[index].connected == false || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
-	char buffer[1024] = {};
+	char buffer[16384] = {};
+	std::string stringBuffer;
 	ssize_t bytes_received;
 	bytes_received = recv (_clients[index].fd, buffer, sizeof (buffer), MSG_DONTWAIT);
 	if (bytes_received == 0)
@@ -273,8 +352,29 @@ void Server::receiveMessage(ClientConnection * client)
 	else if (bytes_received > 0)
 	{
 		std::cout << "Received message from client " << index + 1 << std::endl;
-		_clients[index].status = RECEIVED;
-		_clients[index].request = buffer;
+		stringBuffer = buffer;
+		_clients[index].request += stringBuffer;
+		if (_clients[index].chunkedRecive == false)
+		{
+			if (_clients[index].request.find("\r\n\r\n") == std::string::npos)
+				return;
+			else
+			{
+				if (_clients[index].request.find("Transfer-Encoding: chunked") != std::string::npos)
+				{
+					_clients[index].chunkedRecive = true;
+					if (_clients[index].request.find("\r\n0\r\n\r\n") != std::string::npos)
+						handleChunkedEncoding(index);
+				}
+				else
+					_clients[index].status = RECEIVED;
+			}
+		}
+		else
+		{
+			if (_clients[index].request.find("\r\n0\r\n\r\n") != std::string::npos)
+				handleChunkedEncoding(index);
+		}	
 	}
 }
 

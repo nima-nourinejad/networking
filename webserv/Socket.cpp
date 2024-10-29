@@ -72,7 +72,7 @@ void Socket::removeEpoll(int fd)
 }
 
 Socket::ClientConnection::ClientConnection()
-	: index(-1), fd (-1), connected (false), status(DISCONNECTED){};
+	: index(-1), fd (-1), connected (false), status(DISCONNECTED), chunkedRecive(false){};
 
 Socket::SocketException::SocketException(std::string const & message)
 	: std::runtime_error (message + " : " + strerror(errno)){};
