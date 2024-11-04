@@ -72,6 +72,7 @@ class Socket
 					int fd;
 					int status;
 					bool chunkedRecive;
+					bool keepAlive;
 					time_t connectTime;
 					std::string request;
 					std::string response;
