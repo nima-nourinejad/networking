@@ -10,6 +10,8 @@ class Server : public Socket
     private:
 		static constexpr int MAX_CONNECTIONS = 5;
 		static constexpr int BACKLOG = (2 * MAX_CONNECTIONS);
+		const size_t MAX_HEADER_SIZE = 32768;
+		static constexpr int TIMEOUT = 10;
 		int _num_clients;
 		
 		

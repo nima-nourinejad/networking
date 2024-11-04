@@ -338,15 +338,18 @@ void Server::receiveMessage (ClientConnection * client)
 		if (_clients[index].chunkedRecive == false)
 		{
 			if (_clients[index].request.find ("\r\n\r\n") == std::string::npos)
+			{
+				if (_clients[index].request.size () > MAX_HEADER_SIZE)
+				{
+					std::cout << "Header size exceeded the limit" << std::endl;
+					changeRequestToNotFound (index);
+				}
 				return;
+			}
 			else
 			{
 				if (_clients[index].request.find ("Transfer-Encoding: chunked") != std::string::npos)
-				{
 					_clients[index].chunkedRecive = true;
-					if (_clients[index].request.find ("\r\n0\r\n\r\n") != std::string::npos)
-						handleChunkedEncoding (index);
-				}
 				else
 					_clients[index].status = RECEIVED;
 			}
@@ -403,7 +406,7 @@ void Server::handleEvents ()
 			index = getClientIndex (_ready[i]);
 			if (getClientStatus (_ready[i]) == CONNECTED)
 			{
-				if (getPassedTime (index) > 10)
+				if (getPassedTime (index) > TIMEOUT)
 				{
 					handleTimeouts (index);
 				}
