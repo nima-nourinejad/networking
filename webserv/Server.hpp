@@ -40,7 +40,6 @@ class Server : public Socket
 		void receiveMessage(ClientConnection * client);
 		int waitForEvents();
 		std::string findPath(std::string const & method, std::string const & uri) const;
-		void createResponse(int index);
 		void createResponseParts(int index);
 		std::string createStatusLine(std::string const & method, std::string const & uri) const;
 		int getClientStatus(struct epoll_event const & event) const;

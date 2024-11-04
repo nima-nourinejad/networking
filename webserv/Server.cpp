@@ -165,64 +165,55 @@ void Server::connectionType (int index)
 		_clients[index].keepAlive = false;
 }
 
-void Server::createResponse (int index)
-{
-	_clients[index].status = PROCESSING;
-	connectionType (index);
-	std::cout << "Creating response for client " << index + 1 << std::endl;
-	std::string method = requestmethod (_clients[index].request);
-	std::cout << "Method: " << method << std::endl;
-	std::string uri = requestURI (_clients[index].request);
-	std::cout << "URI: " << uri << std::endl;
-	std::string path = findPath (method, uri);
-	std::cout << "Path: " << path << std::endl;
-	std::string body = readFile (path);
-	if (method == "GET" && (uri == "/" || uri == "/about"))
-		_clients[index].response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string (body.size ()) + "\r\nConnection: close\r\n\r\n" + body;
-	else
-		_clients[index].response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: " + std::to_string (body.size ()) + "\r\nConnection: close\r\n\r\n" + body;
-	_clients[index].status = READYTOSEND;
-	_clients[index].request.clear ();
-	std::cout << "Response created for client " << index + 1 << std::endl;
-}
-
 void Server::createResponseParts (int index)
 {
 	_clients[index].status = PROCESSING;
 	connectionType (index);
 	std::cout << "Creating response for client " << index + 1 << std::endl;
-	std::cout << "****************************************" << std::endl;
-	std::cout << "Request: " << _clients[index].request << std::endl;
 	std::string method = requestmethod (_clients[index].request);
 	std::cout << "Method: " << method << std::endl;
 	std::string uri = requestURI (_clients[index].request);
 	std::cout << "URI: " << uri << std::endl;
 	std::string path = findPath (method, uri);
 	std::cout << "Path: " << path << std::endl;
-	std::string statusLine = createStatusLine (method, uri);
-	std::string contentType = "Content-Type: text/html\r\n";
-	std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
-	std::string connection = "Connection: keep-alive\r\n";
 	std::string body = readFile (path);
 
-	_clients[index].responseParts.push_back (statusLine + contentType + transferEncoding + connection + "\r\n");
+	std::string statusLine = createStatusLine (method, uri);
 
-	size_t chunkSize;
-	std::string chunk;
-	std::stringstream sstream;
-
-	while (body.size () > 0)
+	std::string contentType = "Content-Type: text/html\r\n";
+	std::string connection;
+	if (_clients[index].keepAlive)
+		connection = "Connection: keep-alive\r\n";
+	else
+		connection = "Connection: close\r\n";
+	
+	std::string header;
+	if (body.size() > _config.maxBodySize)
 	{
-		chunkSize = std::min (body.size (), _config.maxBodySize);
-		chunk = body.substr (0, chunkSize);
-		sstream.str ("");
-		sstream << std::hex << chunkSize << "\r\n";
-		sstream << chunk << "\r\n";
-		_clients[index].responseParts.push_back (sstream.str ());
-		body = body.substr (chunkSize);
+		std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
+		header = statusLine + contentType + transferEncoding + connection;
+		_clients[index].responseParts.push_back (header + "\r\n");
+		size_t chunkSize;
+		std::string chunk;
+		std::stringstream sstream;
+		while (body.size () > 0)
+		{
+			chunkSize = std::min (body.size (), _config.maxBodySize);
+			chunk = body.substr (0, chunkSize);
+			sstream.str ("");
+			sstream << std::hex << chunkSize << "\r\n";
+			sstream << chunk << "\r\n";
+			_clients[index].responseParts.push_back (sstream.str ());
+			body = body.substr (chunkSize);
+		}
+		_clients[index].responseParts.push_back ("0\r\n\r\n");
 	}
-
-	_clients[index].responseParts.push_back ("0\r\n\r\n");
+	else
+	{
+		std::string contentLength = "Content-Length: " + std::to_string (body.size ()) + "\r\n";
+		header = statusLine + contentType + contentLength + connection;
+		_clients[index].responseParts.push_back (header + "\r\n" + body);
+	}
 	_clients[index].status = READYTOSEND;
 	std::cout << "Response created for client " << index + 1 << std::endl;
 }
