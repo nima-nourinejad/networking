@@ -25,6 +25,9 @@ class Server : public Socket
 		size_t getChunkedSize(std::string & unProcessed, int index);
 		void grabChunkedData(std::string & unProcessed, size_t chunkedSize, int index);
 		void connectionType(int index);
+		bool finishedReceiving(int index);
+		size_t receivedLength(int index) const;
+
 		
 
     public:

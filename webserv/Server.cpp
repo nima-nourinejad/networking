@@ -316,6 +316,51 @@ void Server::handleChunkedEncoding (int index)
 	}
 }
 
+bool Server::finishedReceiving (int index)
+{
+	size_t contentLength;
+	std::string contentLengthString;
+	if (_clients[index].request.find ("Content-Length: ") == std::string::npos)
+	{
+		std::cout << "No content length found" << std::endl;
+		return true;
+	}
+	contentLengthString = _clients[index].request.substr (_clients[index].request.find ("Content-Length: ") + 16);
+	if (contentLengthString.find ("\r\n") == std::string::npos)
+	{
+		std::cerr << "Failed to find end of content length" << std::endl;
+		changeRequestToNotFound (index);
+		return true;
+	}
+	contentLengthString = contentLengthString.substr (0, contentLengthString.find ("\r\n"));
+	try
+	{
+		contentLength = std::stoul (contentLengthString);
+	}
+	catch (...)
+	{
+		std::cerr << "Failed to convert content length to number" << std::endl;
+		changeRequestToNotFound (index);
+		return true;
+	}
+	if (receivedLength (index) > contentLength)
+	{
+		std::cerr << "Received more data than expected" << std::endl;
+		changeRequestToNotFound (index);
+		return true;
+	}
+	if (receivedLength (index) == contentLength)
+		return true;
+	return false;
+}
+
+size_t Server::receivedLength (int index) const
+{
+	size_t headerLength = _clients[index].request.find ("\r\n\r\n") + 4;
+	size_t receivedLength = _clients[index].request.size () - headerLength;
+	return receivedLength;
+}
+
 void Server::receiveMessage (ClientConnection * client)
 {
 	int index = client->index;
@@ -351,7 +396,10 @@ void Server::receiveMessage (ClientConnection * client)
 				if (_clients[index].request.find ("Transfer-Encoding: chunked") != std::string::npos)
 					_clients[index].chunkedRecive = true;
 				else
-					_clients[index].status = RECEIVED;
+				{
+					if (finishedReceiving (index))
+						_clients[index].status = RECEIVED;
+				}
 			}
 		}
 		else
