@@ -224,21 +224,36 @@ void Server::sendResponseParts (ClientConnection * client)
 	if (_clients[index].fd == -1 || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	ssize_t bytes_sent;
+	// std::cout << "before send" << std::endl;
 	bytes_sent = send (_clients[index].fd, _clients[index].responseParts[0].c_str (), _clients[index].responseParts[0].size (), MSG_DONTWAIT);
-	if (bytes_sent > 0)
+	// std::cout << "before send" << std::endl;
+	if (bytes_sent == 0)
 	{
-		_clients[index].responseParts.erase (_clients[index].responseParts.begin ());
-		if (_clients[index].responseParts.empty ())
+		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+		closeClientSocket (index);
+	}
+	else if (bytes_sent > 0)
+	{
+		if (bytes_sent < static_cast<ssize_t>(_clients[index].responseParts[0].size()))
 		{
-			std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
-			if (_clients[index].keepAlive == false)
-				closeClientSocket (index);
-			else
+			std::string remainPart = _clients[index].responseParts[0].substr(bytes_sent);
+			_clients[index].responseParts[0] = remainPart;
+		}
+		else
+		{
+			_clients[index].responseParts.erase (_clients[index].responseParts.begin ());
+			if (_clients[index].responseParts.empty ())
 			{
-				_clients[index].request.clear ();
-				_clients[index].response.clear ();
-				_clients[index].status = CONNECTED;
-				_clients[index].connectTime = getCurrentTime ();
+				std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
+				if (_clients[index].keepAlive == false)
+					closeClientSocket (index);
+				else
+				{
+					_clients[index].request.clear ();
+					_clients[index].response.clear ();
+					_clients[index].status = CONNECTED;
+					_clients[index].connectTime = getCurrentTime ();
+				}
 			}
 		}
 	}
