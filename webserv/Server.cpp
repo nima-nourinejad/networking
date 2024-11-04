@@ -224,13 +224,12 @@ void Server::sendResponseParts (ClientConnection * client)
 	if (_clients[index].fd == -1 || index >= MAX_CONNECTIONS || index < 0 || signal_status == SIGINT)
 		return;
 	ssize_t bytes_sent;
-	// std::cout << "before send" << std::endl;
 	bytes_sent = send (_clients[index].fd, _clients[index].responseParts[0].c_str (), _clients[index].responseParts[0].size (), MSG_DONTWAIT);
-	// std::cout << "before send" << std::endl;
 	if (bytes_sent == 0)
 	{
 		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
 		closeClientSocket (index);
+		return;
 	}
 	else if (bytes_sent > 0)
 	{
@@ -238,6 +237,7 @@ void Server::sendResponseParts (ClientConnection * client)
 		{
 			std::string remainPart = _clients[index].responseParts[0].substr(bytes_sent);
 			_clients[index].responseParts[0] = remainPart;
+			return;
 		}
 		else
 		{
@@ -467,26 +467,34 @@ void Server::handleEvents ()
 		else
 		{
 			index = getClientIndex (_ready[i]);
-			if (getClientStatus (_ready[i]) == CONNECTED)
+			if (_ready[i].events & EPOLLHUP)
 			{
-				if (getPassedTime (index) > TIMEOUT)
-				{
-					handleTimeouts (index);
-				}
-				else
-				{
-					if (_ready[i].events & EPOLLIN)
-						receiveMessage ((ClientConnection *)_events[i].data.ptr);
-				}
+				std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+				closeClientSocket (index);
 			}
-			else if (getClientStatus (_ready[i]) == RECEIVED)
+			else
 			{
-				createResponseParts (index);
-			}
-			else if (getClientStatus (_ready[i]) == READYTOSEND)
-			{
-				if (_ready[i].events & EPOLLOUT)
-					sendResponseParts ((ClientConnection *)_events[i].data.ptr);
+				if (getClientStatus (_ready[i]) == CONNECTED)
+				{
+					if (getPassedTime (index) > TIMEOUT)
+					{
+						handleTimeouts (index);
+					}
+					else
+					{
+						if (_ready[i].events & EPOLLIN)
+							receiveMessage ((ClientConnection *)_events[i].data.ptr);
+					}
+				}
+				else if (getClientStatus (_ready[i]) == RECEIVED)
+				{
+					createResponseParts (index);
+				}
+				else if (getClientStatus (_ready[i]) == READYTOSEND)
+				{
+					if (_ready[i].events & EPOLLOUT)
+						sendResponseParts ((ClientConnection *)_events[i].data.ptr);
+				}
 			}
 		}
 	}
@@ -499,7 +507,7 @@ void Server::addEpoll (int fd, int index)
 		_events[index].events = EPOLLIN;
 	else
 	{
-		_events[index].events = EPOLLIN | EPOLLOUT;
+		_events[index].events = EPOLLIN | EPOLLOUT | EPOLLHUP;
 		_events[index].data.ptr = &_clients[index];
 	}
 	if (epoll_ctl (_fd_epoll, EPOLL_CTL_ADD, fd, _events + index) == -1)
