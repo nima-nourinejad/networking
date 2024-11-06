@@ -461,13 +461,24 @@ void Server::handleEvents ()
 	{
 		if (_ready[i].data.fd == _socket_fd)
 		{
-			if (_ready[i].events & EPOLLIN)
+			if (_ready[i].events & (EPOLLHUP | EPOLLERR))
+			{
+				std::cerr << "Error on listening socket" << std::endl;
+				removeEpoll (_socket_fd);
+				close(_socket_fd);
+				createSocket ();
+				makeSocketReusable ();
+				setAddress ();
+				connectToSocket ();
+				addEpoll (_socket_fd, MAX_CONNECTIONS);
+			}
+			else if (_ready[i].events & EPOLLIN)
 				acceptClient ();
 		}
 		else
 		{
 			index = getClientIndex (_ready[i]);
-			if (_ready[i].events & EPOLLHUP)
+			if (_ready[i].events & (EPOLLHUP | EPOLLERR))
 			{
 				std::cout << "Client " << index + 1 << " disconnected" << std::endl;
 				closeClientSocket (index);
@@ -504,10 +515,10 @@ void Server::addEpoll (int fd, int index)
 {
 	_events[index].data.fd = fd;
 	if (index == MAX_CONNECTIONS)
-		_events[index].events = EPOLLIN;
+		_events[index].events = EPOLLIN | EPOLLHUP | EPOLLERR;
 	else
 	{
-		_events[index].events = EPOLLIN | EPOLLOUT | EPOLLHUP;
+		_events[index].events = EPOLLIN | EPOLLOUT | EPOLLHUP | EPOLLERR;
 		_events[index].data.ptr = &_clients[index];
 	}
 	if (epoll_ctl (_fd_epoll, EPOLL_CTL_ADD, fd, _events + index) == -1)
