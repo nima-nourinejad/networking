@@ -21,7 +21,7 @@ void Server::connectToSocket ()
 
 void Server::acceptClient ()
 {
-	std::cout << "Recieved EPOLLIN event on listening socket" << std::endl;
+	std::cout << "There are pending connections" << std::endl;
 	if (_num_clients >= MAX_CONNECTIONS)
 	{
 		std::cout << "Max clients reached" << std::endl;
@@ -30,7 +30,6 @@ void Server::acceptClient ()
 	bool noPendingConnections = false;
 	while (noPendingConnections == false)
 	{
-		std::cout << "It seems there are pending connections" << std::endl;
 		ClientConnection temp;
 
 		bool available = false;
@@ -45,12 +44,9 @@ void Server::acceptClient ()
 		}
 		if (available == false)
 			throw SocketException ("Failed to find availbe slot. Contridiction wiht check of _num_clients");
-		std::cout << "There is empty slot for client so I try accept" << std::endl;
 		temp.fd = accept (_socket_fd, NULL, NULL);
 		if (temp.fd == -1)
 		{
-			std::cout << "accept returnning -1" << std::endl;
-
 			if (errno != EAGAIN)
 				throw SocketException ("Failed to accept client");
 			else
@@ -171,11 +167,8 @@ void Server::createResponseParts (int index)
 	connectionType (index);
 	std::cout << "Creating response for client " << index + 1 << std::endl;
 	std::string method = requestmethod (_clients[index].request);
-	std::cout << "Method: " << method << std::endl;
 	std::string uri = requestURI (_clients[index].request);
-	std::cout << "URI: " << uri << std::endl;
 	std::string path = findPath (method, uri);
-	std::cout << "Path: " << path << std::endl;
 	std::string body = readFile (path);
 
 	std::string statusLine = createStatusLine (method, uri);
@@ -244,11 +237,15 @@ void Server::sendResponseParts (ClientConnection * client)
 			_clients[index].responseParts.erase (_clients[index].responseParts.begin ());
 			if (_clients[index].responseParts.empty ())
 			{
-				std::cout << "All response parts sent to client " << index + 1 << ". Waiting for the new request" << std::endl;
+				std::cout << "All response parts sent to client " << index + 1 <<  std::endl;
 				if (_clients[index].keepAlive == false)
+				{
+					std::cout << "Client " << index + 1 << " requested to close connection" << std::endl;
 					closeClientSocket (index);
+				}
 				else
 				{
+					std::cout << "Client " << index + 1 << " requested to keep connection alive. Waiting for a new rquest" << std::endl;
 					_clients[index].request.clear ();
 					_clients[index].response.clear ();
 					_clients[index].status = CONNECTED;
