@@ -470,7 +470,6 @@ void Server::handleEvents ()
 				makeSocketReusable ();
 				setAddress ();
 				connectToSocket ();
-				addEpoll (_socket_fd, MAX_CONNECTIONS);
 			}
 			else if (_ready[i].events & EPOLLIN)
 				acceptClient ();
