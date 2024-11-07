@@ -62,7 +62,7 @@ void Server::acceptClient ()
 			_clients[i].fd = temp.fd;
 			_clients[i].index = i;
 			++_num_clients;
-			_clients[i].status = CONNECTED;
+			_clients[i].status = WAITFORREQUEST;
 			addEpoll (_clients[i].fd, i);
 			_clients[i].connectTime = getCurrentTime ();
 		}
@@ -96,11 +96,9 @@ void Server::closeClientSocket (int index)
 		close (_clients[index].fd);
 		_clients[index].fd = -1;
 		_clients[index].status = DISCONNECTED;
-		_clients[index].chunkedRecive = false;
 		_clients[index].keepAlive = true;
 		_clients[index].connectTime = 0;
 		_clients[index].request.clear ();
-		_clients[index].response.clear ();
 		_clients[index].responseParts.clear ();
 		_clients[index].index = -1;
 		--_num_clients;
@@ -163,7 +161,7 @@ void Server::connectionType (int index)
 
 void Server::createResponseParts (int index)
 {
-	_clients[index].status = PROCESSING;
+	_clients[index].status = PREPARINGRESPONSE;
 	connectionType (index);
 	std::cout << "Creating response for client " << index + 1 << std::endl;
 	std::string method = requestmethod (_clients[index].request);
@@ -247,8 +245,7 @@ void Server::sendResponseParts (ClientConnection * client)
 				{
 					std::cout << "Client " << index + 1 << " requested to keep connection alive. Waiting for a new rquest" << std::endl;
 					_clients[index].request.clear ();
-					_clients[index].response.clear ();
-					_clients[index].status = CONNECTED;
+					_clients[index].status = WAITFORREQUEST;
 					_clients[index].connectTime = getCurrentTime ();
 				}
 			}
@@ -261,7 +258,6 @@ void Server::changeRequestToNotFound (int index)
 	_clients[index].request.clear ();
 	_clients[index].request = "Get /notfound HTTP/1.1\r\n";
 	_clients[index].status = RECEIVED;
-	_clients[index].chunkedRecive = false;
 }
 
 void Server::grabChunkedHeader (std::string & unProcessed, std::string & header, int index)
@@ -320,7 +316,6 @@ void Server::handleChunkedEncoding (int index)
 		if (chunkedSize == 0)
 		{
 			_clients[index].status = RECEIVED;
-			_clients[index].chunkedRecive = false;
 			return;
 		}
 		else
@@ -328,7 +323,7 @@ void Server::handleChunkedEncoding (int index)
 	}
 }
 
-bool Server::finishedReceiving (int index)
+bool Server::finishedReceivingNonChunked (int index)
 {
 	size_t contentLength;
 	std::string contentLengthString;
@@ -366,11 +361,47 @@ bool Server::finishedReceiving (int index)
 	return false;
 }
 
+bool Server::finishedReceivingChunked (int index)
+{
+	if (_clients[index].request.find ("\r\n0\r\n\r\n") != std::string::npos)
+		return true;
+	return false;
+}
+
+bool Server::finishedReceiving (int index)
+{
+	if (_clients[index].status == RECEIVINGUNKOWNTYPE)
+		return false;
+	else if (_clients[index].status == RECEIVINGCHUNKED)
+		return finishedReceivingChunked (index);
+	else
+		return finishedReceivingNonChunked (index);
+}
+
 size_t Server::receivedLength (int index) const
 {
 	size_t headerLength = _clients[index].request.find ("\r\n\r\n") + 4;
 	size_t receivedLength = _clients[index].request.size () - headerLength;
 	return receivedLength;
+}
+
+void Server::findRequestType (int index)
+{
+	if (_clients[index].request.find ("\r\n\r\n") == std::string::npos)
+	{
+		if (_clients[index].request.size () > MAX_HEADER_SIZE)
+		{
+			std::cout << "Header size exceeded the limit" << std::endl;
+			changeRequestToNotFound (index);
+		}
+	}
+	else
+	{
+		if (_clients[index].request.find ("Transfer-Encoding: chunked") != std::string::npos)
+			_clients[index].status = RECEIVINGCHUNKED;
+		else
+			_clients[index].status = RECEIVINGNONCHUNKED;
+	}
 }
 
 void Server::receiveMessage (ClientConnection * client)
@@ -390,34 +421,17 @@ void Server::receiveMessage (ClientConnection * client)
 	else if (bytes_received > 0)
 	{
 		std::cout << "Received message from client " << index + 1 << std::endl;
+		if (_clients[index].status == WAITFORREQUEST)
+			_clients[index].status = RECEIVINGUNKOWNTYPE;
 		stringBuffer = buffer;
 		_clients[index].request += stringBuffer;
-		if (_clients[index].chunkedRecive == false)
+		if (_clients[index].status == RECEIVINGUNKOWNTYPE)
+			findRequestType (index);
+		if (finishedReceiving(index))
 		{
-			if (_clients[index].request.find ("\r\n\r\n") == std::string::npos)
-			{
-				if (_clients[index].request.size () > MAX_HEADER_SIZE)
-				{
-					std::cout << "Header size exceeded the limit" << std::endl;
-					changeRequestToNotFound (index);
-				}
-				return;
-			}
-			else
-			{
-				if (_clients[index].request.find ("Transfer-Encoding: chunked") != std::string::npos)
-					_clients[index].chunkedRecive = true;
-				else
-				{
-					if (finishedReceiving (index))
-						_clients[index].status = RECEIVED;
-				}
-			}
-		}
-		else
-		{
-			if (_clients[index].request.find ("\r\n0\r\n\r\n") != std::string::npos)
+			if (_clients[index].status == RECEIVINGCHUNKED)
 				handleChunkedEncoding (index);
+			_clients[index].status = RECEIVED;
 		}
 	}
 }
@@ -454,7 +468,7 @@ void Server::handleTimeouts ()
 {
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 	{
-		if (_clients[i].status == CONNECTED && getPassedTime (i) > TIMEOUT)
+		if (_clients[i].status > DISCONNECTED && _clients[i].status < RECEIVED && getPassedTime (i) > TIMEOUT)
 			handleTimeout (i);
 	}
 }
@@ -496,7 +510,7 @@ void Server::handleClientEvents(struct epoll_event const & event)
 		handleErr (event);
 	else
 	{
-		if (getClientStatus (event) == CONNECTED && (event.events & EPOLLIN))
+		if (getClientStatus (event) < RECEIVED && (event.events & EPOLLIN))
 			receiveMessage ((ClientConnection *)event.data.ptr);
 		else if (getClientStatus (event) == READYTOSEND && (event.events & EPOLLOUT)) 
 			sendResponseParts ((ClientConnection *)event.data.ptr);

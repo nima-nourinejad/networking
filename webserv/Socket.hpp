@@ -48,11 +48,13 @@ class Socket
 		enum
 		{
 			DISCONNECTED,
-			CONNECTED,
+			WAITFORREQUEST,
+			RECEIVINGUNKOWNTYPE,
+			RECEIVINGNONCHUNKED,
+			RECEIVINGCHUNKED,
 			RECEIVED,
-			PROCESSING,
-			READYTOSEND,
-			SENT
+			PREPARINGRESPONSE,
+			READYTOSEND
 		};
 	
 		class Configration
@@ -71,11 +73,9 @@ class Socket
 					int index;
 					int fd;
 					int status;
-					bool chunkedRecive;
 					bool keepAlive;
 					time_t connectTime;
 					std::string request;
-					std::string response;
 					std::vector<std::string> responseParts;
 					ClientConnection ();
 			};

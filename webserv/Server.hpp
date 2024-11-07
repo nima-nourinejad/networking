@@ -26,6 +26,8 @@ class Server : public Socket
 		void grabChunkedData(std::string & unProcessed, size_t chunkedSize, int index);
 		void connectionType(int index);
 		bool finishedReceiving(int index);
+		bool finishedReceivingChunked(int index);
+		bool finishedReceivingNonChunked(int index);
 		size_t receivedLength(int index) const;
 		void handleTimeouts();
 		void prepareResponses();
@@ -33,6 +35,7 @@ class Server : public Socket
 		void handleErr(struct epoll_event const & event);
 		void handleClientEvents(struct epoll_event const & event);
 		void handleListeningEvents(struct epoll_event const & event);
+		void findRequestType(int index);
 
 		
 
