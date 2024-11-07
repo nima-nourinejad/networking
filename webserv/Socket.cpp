@@ -1,7 +1,7 @@
 #include "Socket.hpp"
 
-Socket::Socket (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes)
-    : _socket_fd(-1), _fd_epoll(-1), _config(port, host, errorPage, maxBodySize, routes)
+Socket::Socket (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes)
+    : _socket_fd(-1), _fd_epoll(-1), _config(port, host, maxBodySize, routes)
 {
 	applyCustomSignal ();
 	createSocket ();
@@ -77,7 +77,7 @@ Socket::ClientConnection::ClientConnection()
 Socket::SocketException::SocketException(std::string const & message)
 	: std::runtime_error (message + " : " + strerror(errno)){};
 
-Socket::Configration::Configration(int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes): port(port), host(host), errorPage(errorPage), maxBodySize(maxBodySize), routes(routes){};
+Socket::Configration::Configration(int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes): port(port), host(host), maxBodySize(maxBodySize), routes(routes){};
 
 
 std::string Socket::readFile(std::string const & path) const

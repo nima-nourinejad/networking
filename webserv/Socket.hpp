@@ -62,10 +62,9 @@ class Socket
 			public:
 				int port;
 				std::string host;
-				std::string errorPage;
 				size_t maxBodySize;
 				std::map <std::string, std::string> routes;
-				Configration(int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
+				Configration(int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		};
 		class ClientConnection
 			{
@@ -80,7 +79,7 @@ class Socket
 					ClientConnection ();
 			};
 		Configration _config;
-		Socket (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
+		Socket (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		virtual void closeSocket () = 0;
 		static volatile sig_atomic_t signal_status;
 	

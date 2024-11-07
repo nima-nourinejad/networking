@@ -41,7 +41,7 @@ class Server : public Socket
 		
 
     public:
-		Server (int port, std::string const & host, std::string const & errorPage, size_t maxBodySize, std::map<std::string, std::string> const & routes);
+		Server (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 		void connectToSocket () override;
 		void acceptClient ();
 		std::string getRequest (int index) const;
