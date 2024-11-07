@@ -120,7 +120,7 @@ int Server::getNumClients () const
 
 int Server::waitForEvents ()
 {
-	int n_ready_fds = epoll_wait (_fd_epoll, _ready, MAX_CONNECTIONS + 1, -1);
+	int n_ready_fds = epoll_wait (_fd_epoll, _ready, MAX_CONNECTIONS + 1, 0);
 	if (n_ready_fds == -1)
 	{
 		if (errno == EINTR)
@@ -438,7 +438,7 @@ int Server::getClientIndex (struct epoll_event const & event) const
 	return target->index;
 }
 
-void Server::handleTimeouts (int index)
+void Server::handleTimeout (int index)
 {
 	std::cout << "Client " << index + 1 << " timed out" << std::endl;
 	if (_clients[index].request.empty () == false)
@@ -450,61 +450,86 @@ void Server::handleTimeouts (int index)
 		closeClientSocket (index);
 }
 
-void Server::handleEvents ()
+void Server::handleTimeouts ()
+{
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+	{
+		if (_clients[i].status == CONNECTED && getPassedTime (i) > TIMEOUT)
+			handleTimeout (i);
+	}
+}
+
+void Server::prepareResponses ()
+{
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+	{
+		if (_clients[i].status == RECEIVED)
+			createResponseParts (i);
+	}
+}
+
+void Server::handleErr (struct epoll_event const & event)
+{
+	if (event.data.fd == _socket_fd)
+	{
+		std::cerr << "Error on listening socket" << std::endl;
+		removeEpoll (_socket_fd);
+		close (_socket_fd);
+		createSocket ();
+		makeSocketReusable ();
+		setAddress ();
+		connectToSocket ();
+	}
+	else
+	{
+		int index = getClientIndex (event);
+		if (index == -1)
+			return;
+		std::cout << "Client " << index + 1 << " disconnected" << std::endl;
+		closeClientSocket (index);
+	}
+}
+
+void Server::handleClientEvents(struct epoll_event const & event)
+{
+	if (event.events & (EPOLLHUP | EPOLLERR))
+		handleErr (event);
+	else
+	{
+		if (getClientStatus (event) == CONNECTED && (event.events & EPOLLIN))
+			receiveMessage ((ClientConnection *)event.data.ptr);
+		else if (getClientStatus (event) == READYTOSEND && (event.events & EPOLLOUT)) 
+			sendResponseParts ((ClientConnection *)event.data.ptr);
+	}
+	
+}
+
+void Server::handleListeningEvents(struct epoll_event const & event)
+{
+	if (event.events & (EPOLLHUP | EPOLLERR))
+		handleErr (event);
+	else if (event.events & EPOLLIN)
+		acceptClient ();
+}
+
+void Server::handleSocketEvents ()
 {
 	int n_ready_fds = waitForEvents ();
-	int index;
 	for (int i = 0; i < n_ready_fds; i++)
 	{
 		if (_ready[i].data.fd == _socket_fd)
-		{
-			if (_ready[i].events & (EPOLLHUP | EPOLLERR))
-			{
-				std::cerr << "Error on listening socket" << std::endl;
-				removeEpoll (_socket_fd);
-				close(_socket_fd);
-				createSocket ();
-				makeSocketReusable ();
-				setAddress ();
-				connectToSocket ();
-			}
-			else if (_ready[i].events & EPOLLIN)
-				acceptClient ();
-		}
+			handleListeningEvents (_ready[i]);
 		else
-		{
-			index = getClientIndex (_ready[i]);
-			if (_ready[i].events & (EPOLLHUP | EPOLLERR))
-			{
-				std::cout << "Client " << index + 1 << " disconnected" << std::endl;
-				closeClientSocket (index);
-			}
-			else
-			{
-				if (getClientStatus (_ready[i]) == CONNECTED)
-				{
-					if (getPassedTime (index) > TIMEOUT)
-					{
-						handleTimeouts (index);
-					}
-					else
-					{
-						if (_ready[i].events & EPOLLIN)
-							receiveMessage ((ClientConnection *)_events[i].data.ptr);
-					}
-				}
-				else if (getClientStatus (_ready[i]) == RECEIVED)
-				{
-					createResponseParts (index);
-				}
-				else if (getClientStatus (_ready[i]) == READYTOSEND)
-				{
-					if (_ready[i].events & EPOLLOUT)
-						sendResponseParts ((ClientConnection *)_events[i].data.ptr);
-				}
-			}
-		}
+			handleClientEvents (_ready[i]);
 	}
+	
+}
+
+void Server::handleEvents ()
+{
+	handleSocketEvents ();
+	handleTimeouts ();
+	prepareResponses ();
 }
 
 void Server::addEpoll (int fd, int index)

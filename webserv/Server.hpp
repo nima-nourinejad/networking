@@ -27,6 +27,12 @@ class Server : public Socket
 		void connectionType(int index);
 		bool finishedReceiving(int index);
 		size_t receivedLength(int index) const;
+		void handleTimeouts();
+		void prepareResponses();
+		void handleSocketEvents();
+		void handleErr(struct epoll_event const & event);
+		void handleClientEvents(struct epoll_event const & event);
+		void handleListeningEvents(struct epoll_event const & event);
 
 		
 
@@ -51,7 +57,7 @@ class Server : public Socket
 		ClientConnection _clients[MAX_CONNECTIONS];
 		struct epoll_event _events[MAX_CONNECTIONS + 1];
 		struct epoll_event _ready[MAX_CONNECTIONS + 1];
-		void handleTimeouts(int index);
+		void handleTimeout(int index);
 		
 		
 };
