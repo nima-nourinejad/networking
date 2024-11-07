@@ -20,7 +20,8 @@ class Server : public Socket
 		time_t getPassedTime(int index) const;
 		int getClientIndex(struct epoll_event const & event) const;
 		void handleChunkedEncoding(int index);
-		void changeRequestToNotFound(int index);
+		void changeRequestToBadRequest(int index);
+		void changeRequestToServerError(int index);
 		void grabChunkedHeader(std::string & unProcessed, std::string & header, int index);
 		size_t getChunkedSize(std::string & unProcessed, int index);
 		void grabChunkedData(std::string & unProcessed, size_t chunkedSize, int index);

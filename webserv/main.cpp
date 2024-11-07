@@ -7,6 +7,9 @@ int main ()
 	routes["/"] = "index.html";
 	routes["/about"] = "about.html";
 	routes["/long"] = "long.html";
+	routes["/400"] = "400.html";
+	routes["/404"] = "404.html";
+	routes["/500"] = "500.html";
 	Server server(9001, "127.0.0.3", "404.html", 1, routes);
 	server.connectToSocket ();
 

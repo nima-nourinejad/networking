@@ -138,8 +138,12 @@ std::string Server::findPath (std::string const & method, std::string const & ur
 		path = _config.routes.at ("/about");
 	else if (method == "GET" && uri == "/long")
 		path = _config.routes.at ("/long");
+	else if (method == "GET" && uri == "/400")
+		path = _config.routes.at ("/400");
+	else if (method == "GET" && uri == "/500")
+		path = _config.routes.at ("/500");
 	else
-		path = _config.errorPage;
+		path = _config.routes.at ("/404");
 	return path;
 }
 
@@ -148,6 +152,10 @@ std::string Server::createStatusLine (std::string const & method, std::string co
 	std::string statusLine;
 	if (method == "GET" && (uri == "/" || uri == "/about" || uri == "/long"))
 		statusLine = "HTTP/1.1 200 OK\r\n";
+	else if (method == "GET" && (uri == "/500"))
+		statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
+	else if (method == "GET" && (uri == "/400"))
+		statusLine = "HTTP/1.1 400 Bad Request\r\n";
 	else
 		statusLine = "HTTP/1.1 404 Not Found\r\n";
 	return statusLine;
@@ -253,10 +261,17 @@ void Server::sendResponseParts (ClientConnection * client)
 	}
 }
 
-void Server::changeRequestToNotFound (int index)
+void Server::changeRequestToBadRequest (int index)
 {
 	_clients[index].request.clear ();
-	_clients[index].request = "Get /notfound HTTP/1.1\r\n";
+	_clients[index].request = "Get /400 HTTP/1.1\r\n";
+	_clients[index].status = RECEIVED;
+}
+
+void Server::changeRequestToServerError (int index)
+{
+	_clients[index].request.clear ();
+	_clients[index].request = "Get /500 HTTP/1.1\r\n";
 	_clients[index].status = RECEIVED;
 }
 
@@ -279,12 +294,12 @@ size_t Server::getChunkedSize (std::string & unProcessed, int index)
 	}
 	catch (...)
 	{
-		changeRequestToNotFound (index);
+		changeRequestToBadRequest (index);
 		return 0;
 	}
 	if (unProcessed.size () < chunkedSize + 2)
 	{
-		changeRequestToNotFound (index);
+		changeRequestToBadRequest (index);
 		return 0;
 	}
 	return chunkedSize;
@@ -302,8 +317,10 @@ void Server::handleChunkedEncoding (int index)
 {
 	std::string unProcessed = _clients[index].request;
 	_clients[index].request.clear ();
-	if (unProcessed.find ("Transfer-Encoding: chunked") == std::string::npos || unProcessed.find ("\r\n\r\n") == std::string::npos)
-		return (changeRequestToNotFound (index));
+	if (unProcessed.find ("Transfer-Encoding: chunked") == std::string::npos)
+		return (changeRequestToServerError (index));
+	if (unProcessed.find ("\r\n0\r\n\r\n") != std::string::npos)
+		return (changeRequestToBadRequest (index));
 	std::string header = "";
 	grabChunkedHeader (unProcessed, header, index);
 
@@ -311,7 +328,7 @@ void Server::handleChunkedEncoding (int index)
 	while (true)
 	{
 		if (unProcessed.find ("\r\n") == std::string::npos)
-			return (changeRequestToNotFound (index));
+			return (changeRequestToBadRequest (index));
 		chunkedSize = getChunkedSize (unProcessed, index);
 		if (chunkedSize == 0)
 		{
@@ -336,7 +353,7 @@ bool Server::finishedReceivingNonChunked (int index)
 	if (contentLengthString.find ("\r\n") == std::string::npos)
 	{
 		std::cerr << "Failed to find end of content length" << std::endl;
-		changeRequestToNotFound (index);
+		changeRequestToBadRequest (index);
 		return true;
 	}
 	contentLengthString = contentLengthString.substr (0, contentLengthString.find ("\r\n"));
@@ -347,13 +364,13 @@ bool Server::finishedReceivingNonChunked (int index)
 	catch (...)
 	{
 		std::cerr << "Failed to convert content length to number" << std::endl;
-		changeRequestToNotFound (index);
+		changeRequestToBadRequest (index);
 		return true;
 	}
 	if (receivedLength (index) > contentLength)
 	{
 		std::cerr << "Received more data than expected" << std::endl;
-		changeRequestToNotFound (index);
+		changeRequestToBadRequest (index);
 		return true;
 	}
 	if (receivedLength (index) == contentLength)
@@ -392,7 +409,7 @@ void Server::findRequestType (int index)
 		if (_clients[index].request.size () > MAX_HEADER_SIZE)
 		{
 			std::cout << "Header size exceeded the limit" << std::endl;
-			changeRequestToNotFound (index);
+			changeRequestToBadRequest (index);
 		}
 	}
 	else
