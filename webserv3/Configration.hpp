@@ -10,8 +10,7 @@ class Configration
 	int port;
 	std::string host;
 	size_t maxBodySize;
-	std::map<std::string, std::string> routes;
-	Configration (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
+	Configration (int port, std::string const & host, size_t maxBodySize);
 };
 
 #endif

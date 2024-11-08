@@ -1,7 +1,7 @@
 #include "Server.hpp"
 
-Server::Server (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes)
-    : _socket_fd (-1), _fd_epoll (-1), _config (port, host, maxBodySize, routes), _num_clients (0)
+Server::Server (int port, std::string const & host, size_t maxBodySize)
+    : _socket_fd (-1), _fd_epoll (-1), _config (port, host, maxBodySize), _num_clients (0)
 {
 	applyCustomSignal ();
 	createSocket ();
@@ -140,17 +140,17 @@ std::string Server::findPath (std::string const & method, std::string const & ur
 {
 	std::string path;
 	if (method == "GET" && uri == "/")
-		path = _config.routes.at ("/");
+		path = "html/index.html";
 	else if (method == "GET" && uri == "/about")
-		path = _config.routes.at ("/about");
+		path = "html/about.html";
 	else if (method == "GET" && uri == "/long")
-		path = _config.routes.at ("/long");
+		path = "html/long.html";
 	else if (method == "GET" && uri == "/400")
-		path = _config.routes.at ("/400");
+		path = "html/400.html";
 	else if (method == "GET" && uri == "/500")
-		path = _config.routes.at ("/500");
+		path = "html/500.html";
 	else
-		path = _config.routes.at ("/404");
+		path = "html/404.html";
 	return path;
 }
 

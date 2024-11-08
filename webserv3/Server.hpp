@@ -95,7 +95,7 @@ class Server
 
       public:
 	/// Listening Socket Methods
-	Server (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
+	Server (int port, std::string const & host, size_t maxBodySize);
 	void connectToSocket ();
 	void handleEvents ();
 	void closeSocket ();
