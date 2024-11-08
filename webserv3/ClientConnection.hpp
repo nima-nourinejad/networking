@@ -4,6 +4,7 @@
 #include <ctime>
 #include <string>
 #include <vector>
+#include <iostream>
 
 enum ClientStatus
 {
@@ -19,7 +20,14 @@ enum ClientStatus
 
 class ClientConnection
 {
+	private:
+
+	/// Constants
+		const size_t MAX_HEADER_SIZE = 32768;
+	
       public:
+
+	/// Public Attributes
 	int index;
 	int fd;
 	int status;
@@ -27,9 +35,17 @@ class ClientConnection
 	time_t connectTime;
 	std::string request;
 	std::vector<std::string> responseParts;
+
+	/// Public Methods
 	ClientConnection ();
 	void changeRequestToBadRequest ();
 	void changeRequestToServerError ();
+	bool finishedReceivingNonChunked ();
+	bool finishedReceivingChunked ();
+	bool finishedReceiving ();
+	size_t receivedLength () const;
+	void findRequestType ();
+
 };
 
 #endif

@@ -3,7 +3,6 @@
 
 #include <cerrno>
 #include <fstream>
-#include <iostream>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
@@ -25,7 +24,6 @@ class Server
 	/// Constants
 	static constexpr int MAX_CONNECTIONS = 5;
 	static constexpr int BACKLOG = (2 * MAX_CONNECTIONS);
-	const size_t MAX_HEADER_SIZE = 32768;
 	static constexpr int TIMEOUT = 10;
 
 	/// Private Attributes
@@ -45,12 +43,7 @@ class Server
 	size_t getChunkedSize (std::string & unProcessed, int index);
 	void grabChunkedData (std::string & unProcessed, size_t chunkedSize, int index);
 	void connectionType (int index);
-	bool finishedReceiving (int index);
-	bool finishedReceivingChunked (int index);
-	bool finishedReceivingNonChunked (int index);
-	size_t receivedLength (int index) const;
 	void prepareResponses ();
-	void findRequestType (int index);
 	std::string getRequest (int index) const;
 	void closeClientSocket (int index);
 	void closeClientSockets ();
