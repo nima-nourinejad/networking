@@ -103,3 +103,26 @@ void ClientConnection::connectionType ()
 	if (request.find ("Connection: close") != std::string::npos)
 		keepAlive = false;
 }
+
+size_t ClientConnection::getChunkedSize (std::string & unProcessed)
+{
+	size_t chunkedSize;
+	std::string sizeString;
+	sizeString = unProcessed.substr (0, unProcessed.find ("\r\n"));
+	unProcessed = unProcessed.substr (unProcessed.find ("\r\n") + 2);
+	try
+	{
+		chunkedSize = std::stoul (sizeString, nullptr, 16);
+	}
+	catch (...)
+	{
+		changeRequestToBadRequest();
+		return 0;
+	}
+	if (unProcessed.size () < chunkedSize + 2)
+	{
+		changeRequestToBadRequest();
+		return 0;
+	}
+	return chunkedSize;
+}

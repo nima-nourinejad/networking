@@ -46,6 +46,7 @@ class ClientConnection
 	size_t receivedLength () const;
 	void findRequestType ();
 	void connectionType ();
+	size_t getChunkedSize (std::string & unProcessed);
 
 };
 

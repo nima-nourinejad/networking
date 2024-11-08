@@ -286,29 +286,6 @@ void Server::grabChunkedHeader (std::string & unProcessed, std::string & header,
 	_clients[index].request = header;
 }
 
-size_t Server::getChunkedSize (std::string & unProcessed, int index)
-{
-	size_t chunkedSize;
-	std::string sizeString;
-	sizeString = unProcessed.substr (0, unProcessed.find ("\r\n"));
-	unProcessed = unProcessed.substr (unProcessed.find ("\r\n") + 2);
-	try
-	{
-		chunkedSize = std::stoul (sizeString, nullptr, 16);
-	}
-	catch (...)
-	{
-		_clients[index].changeRequestToBadRequest();
-		return 0;
-	}
-	if (unProcessed.size () < chunkedSize + 2)
-	{
-		_clients[index].changeRequestToBadRequest();
-		return 0;
-	}
-	return chunkedSize;
-}
-
 void Server::grabChunkedData (std::string & unProcessed, size_t chunkedSize, int index)
 {
 	std::string data;
@@ -333,7 +310,7 @@ void Server::handleChunkedEncoding (int index)
 	{
 		if (unProcessed.find ("\r\n") == std::string::npos)
 			return (_clients[index].changeRequestToBadRequest ());
-		chunkedSize = getChunkedSize (unProcessed, index);
+		chunkedSize = _clients[index].getChunkedSize (unProcessed);
 		if (chunkedSize == 0)
 		{
 			_clients[index].status = RECEIVED;
