@@ -668,14 +668,6 @@ void Server::removeEpoll (int fd)
 		throw SocketException ("Failed to remove epoll event");
 }
 
-Server::ClientConnection::ClientConnection ()
-    : index (-1), fd (-1), status (DISCONNECTED), keepAlive (true){};
-
-Server::SocketException::SocketException (std::string const & message)
-    : std::runtime_error (message + " : " + strerror (errno)){};
-
-Server::Configration::Configration (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes)
-    : port (port), host (host), maxBodySize (maxBodySize), routes (routes){};
 
 std::string Server::readFile (std::string const & path) const
 {

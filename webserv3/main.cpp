@@ -5,11 +5,13 @@ int main ()
 {
 	std::map<std::string, std::string> routes;
 	routes["/"] = "index.html";
-	routes["/about"] = "about.html";
-	routes["/long"] = "long.html";
-	routes["/400"] = "400.html";
-	routes["/404"] = "404.html";
-	routes["/500"] = "500.html";
+	routes["/about"] = "html/about.html";
+	routes["/long"] = "html/long.html";
+	routes["/400"] = "html/400.html";
+	routes["/404"] = "html/404.html";
+	routes["/500"] = "html/500.html";
+
+	
 	Server server(9001, "127.0.0.3", 1, routes);
 	server.connectToSocket ();
 
