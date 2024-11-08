@@ -320,10 +320,6 @@ void Server::addEpoll (int fd, int index)
 		throw SocketException ("Failed to add listening port to epoll event");
 }
 
-
-
-
-///
 void Server::createSocket ()
 {
 	_socket_fd = socket (AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
