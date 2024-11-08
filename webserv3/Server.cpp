@@ -136,7 +136,7 @@ int Server::waitForEvents ()
 	return n_ready_fds;
 }
 
-std::string Server::findPath (std::string const & method, std::string const & uri) const
+std::string findPath (std::string const & method, std::string const & uri)
 {
 	std::string path;
 	if (method == "GET" && uri == "/")
@@ -154,7 +154,7 @@ std::string Server::findPath (std::string const & method, std::string const & ur
 	return path;
 }
 
-std::string Server::createStatusLine (std::string const & method, std::string const & uri) const
+std::string createStatusLine (std::string const & method, std::string const & uri)
 {
 	std::string statusLine;
 	if (method == "GET" && (uri == "/" || uri == "/about" || uri == "/long"))

@@ -60,9 +60,7 @@ class Server
 	void closeClientSockets ();
 	void sendResponseParts (ClientConnection * client);
 	void receiveMessage (ClientConnection * client);
-	std::string findPath (std::string const & method, std::string const & uri) const;
 	void createResponseParts (int index);
-	std::string createStatusLine (std::string const & method, std::string const & uri) const;
 	void handleTimeout (int index);
 
 	/// Event Handling Methods
@@ -77,7 +75,6 @@ class Server
 	void addEpoll (int fd, int index);
 	int waitForEvents ();
 	int getClientStatus (struct epoll_event const & event) const;
-	
 	
 
 	/// Utility Methods
