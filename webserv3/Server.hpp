@@ -39,8 +39,6 @@ class Server
 	struct epoll_event _ready[MAX_CONNECTIONS + 1];
 
 	/// ClientConnection Methods
-	std::string requestURI (std::string const & message) const;
-	std::string requestmethod (std::string const & message) const;
 	time_t getPassedTime (int index) const;
 	void handleChunkedEncoding (int index);
 	void changeRequestToBadRequest (int index);

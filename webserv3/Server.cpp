@@ -174,6 +174,23 @@ void Server::connectionType (int index)
 		_clients[index].keepAlive = false;
 }
 
+std::string requestURI (std::string const & request)
+{
+	std::istringstream stream (request);
+	std::string method;
+	std::string uri;
+	stream >> method >> uri;
+	return uri;
+}
+
+std::string requestmethod (std::string const & request)
+{
+	std::istringstream stream (request);
+	std::string method;
+	stream >> method;
+	return method;
+}
+
 void Server::createResponseParts (int index)
 {
 	_clients[index].status = PREPARINGRESPONSE;
@@ -582,22 +599,6 @@ void Server::addEpoll (int fd, int index)
 		throw SocketException ("Failed to add listening port to epoll event");
 }
 
-std::string Server::requestURI (std::string const & message) const
-{
-	std::istringstream stream (message);
-	std::string method;
-	std::string uri;
-	stream >> method >> uri;
-	return uri;
-}
-
-std::string Server::requestmethod (std::string const & message) const
-{
-	std::istringstream stream (message);
-	std::string method;
-	stream >> method;
-	return method;
-}
 
 time_t Server::getPassedTime (int index) const
 {
