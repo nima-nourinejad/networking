@@ -47,6 +47,9 @@ class ClientConnection
 	void findRequestType ();
 	void connectionType ();
 	size_t getChunkedSize (std::string & unProcessed);
+	void grabChunkedData (std::string & unProcessed, size_t chunkedSize);
+	void grabChunkedHeader (std::string & unProcessed, std::string & header);
+	void handleChunkedEncoding ();
 
 };
 

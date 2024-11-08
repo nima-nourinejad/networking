@@ -126,3 +126,42 @@ size_t ClientConnection::getChunkedSize (std::string & unProcessed)
 	}
 	return chunkedSize;
 }
+
+void ClientConnection::grabChunkedData (std::string & unProcessed, size_t chunkedSize)
+{
+	std::string data;
+	data = unProcessed.substr (0, chunkedSize);
+	request += data;
+	unProcessed = unProcessed.substr (chunkedSize + 2);
+}
+
+void ClientConnection::grabChunkedHeader (std::string & unProcessed, std::string & header)
+{
+	header = unProcessed.substr (0, unProcessed.find ("\r\n\r\n") + 4);
+	unProcessed = unProcessed.substr (unProcessed.find ("\r\n\r\n") + 4);
+	request = header;
+}
+
+void ClientConnection::handleChunkedEncoding ()
+{
+	std::string unProcessed = request;
+	request.clear ();
+	if (unProcessed.find ("Transfer-Encoding: chunked") == std::string::npos)
+		return (changeRequestToServerError ());
+	if (unProcessed.find ("\r\n0\r\n\r\n") != std::string::npos)
+		return (changeRequestToBadRequest ());
+	std::string header = "";
+	grabChunkedHeader (unProcessed, header);
+
+	size_t chunkedSize;
+	while (true)
+	{
+		if (unProcessed.find ("\r\n") == std::string::npos)
+			return (changeRequestToBadRequest ());
+		chunkedSize = getChunkedSize (unProcessed);
+		if (chunkedSize == 0)
+			return;
+		else
+			grabChunkedData (unProcessed, chunkedSize);
+	}
+}

@@ -274,48 +274,6 @@ void Server::sendResponseParts (ClientConnection * client)
 	}
 }
 
-void Server::grabChunkedHeader (std::string & unProcessed, std::string & header, int index)
-{
-	header = unProcessed.substr (0, unProcessed.find ("\r\n\r\n") + 4);
-	unProcessed = unProcessed.substr (unProcessed.find ("\r\n\r\n") + 4);
-	_clients[index].request = header;
-}
-
-void Server::grabChunkedData (std::string & unProcessed, size_t chunkedSize, int index)
-{
-	std::string data;
-	data = unProcessed.substr (0, chunkedSize);
-	_clients[index].request += data;
-	unProcessed = unProcessed.substr (chunkedSize + 2);
-}
-
-void Server::handleChunkedEncoding (int index)
-{
-	std::string unProcessed = _clients[index].request;
-	_clients[index].request.clear ();
-	if (unProcessed.find ("Transfer-Encoding: chunked") == std::string::npos)
-		return (_clients[index].changeRequestToServerError ());
-	if (unProcessed.find ("\r\n0\r\n\r\n") != std::string::npos)
-		return (_clients[index].changeRequestToBadRequest ());
-	std::string header = "";
-	grabChunkedHeader (unProcessed, header, index);
-
-	size_t chunkedSize;
-	while (true)
-	{
-		if (unProcessed.find ("\r\n") == std::string::npos)
-			return (_clients[index].changeRequestToBadRequest ());
-		chunkedSize = _clients[index].getChunkedSize (unProcessed);
-		if (chunkedSize == 0)
-		{
-			_clients[index].status = RECEIVED;
-			return;
-		}
-		else
-			grabChunkedData (unProcessed, chunkedSize, index);
-	}
-}
-
 void Server::receiveMessage (ClientConnection * client)
 {
 	int index = client->index;
@@ -342,7 +300,7 @@ void Server::receiveMessage (ClientConnection * client)
 		if (_clients[index].finishedReceiving ())
 		{
 			if (_clients[index].status == RECEIVINGCHUNKED)
-				handleChunkedEncoding (index);
+				_clients[index].handleChunkedEncoding ();
 			_clients[index].status = RECEIVED;
 		}
 	}

@@ -38,9 +38,6 @@ class Server
 
 	/// ClientConnection Methods
 	time_t getPassedTime (int index) const;
-	void handleChunkedEncoding (int index);
-	void grabChunkedHeader (std::string & unProcessed, std::string & header, int index);
-	void grabChunkedData (std::string & unProcessed, size_t chunkedSize, int index);
 	void prepareResponses ();
 	void closeClientSocket (int index);
 	void closeClientSockets ();
