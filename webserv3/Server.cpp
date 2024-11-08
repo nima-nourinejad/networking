@@ -168,12 +168,6 @@ std::string createStatusLine (std::string const & method, std::string const & ur
 	return statusLine;
 }
 
-void Server::connectionType (int index)
-{
-	if (_clients[index].request.find ("Connection: close") != std::string::npos)
-		_clients[index].keepAlive = false;
-}
-
 std::string requestURI (std::string const & request)
 {
 	std::istringstream stream (request);
@@ -194,7 +188,7 @@ std::string requestmethod (std::string const & request)
 void Server::createResponseParts (int index)
 {
 	_clients[index].status = PREPARINGRESPONSE;
-	connectionType (index);
+	_clients[index].connectionType ();
 	std::cout << "Creating response for client " << index + 1 << std::endl;
 	std::string method = requestmethod (_clients[index].request);
 	std::string uri = requestURI (_clients[index].request);

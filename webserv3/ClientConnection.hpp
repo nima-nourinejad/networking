@@ -45,6 +45,7 @@ class ClientConnection
 	bool finishedReceiving ();
 	size_t receivedLength () const;
 	void findRequestType ();
+	void connectionType ();
 
 };
 

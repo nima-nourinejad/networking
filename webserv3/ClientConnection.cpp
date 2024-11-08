@@ -97,3 +97,9 @@ void ClientConnection::findRequestType ()
 			status = RECEIVINGNONCHUNKED;
 	}
 }
+
+void ClientConnection::connectionType ()
+{
+	if (request.find ("Connection: close") != std::string::npos)
+		keepAlive = false;
+}
