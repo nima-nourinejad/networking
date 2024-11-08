@@ -4,10 +4,9 @@ Server::Server (int port, std::string const & host, size_t maxBodySize)
     : _socket_fd (-1), _fd_epoll (-1), _config (port, host, maxBodySize), _num_clients (0)
 {
 	applyCustomSignal ();
-	createSocket ();
-	makeSocketReusable ();
-	setAddress ();
 	createEpoll ();
+	startListeningSocket ();
+	setClientsMaxBodySize (maxBodySize);
 };
 
 void Server::connectToSocket ()
@@ -71,7 +70,7 @@ void Server::acceptClient ()
 			++_num_clients;
 			_clients[i].status = WAITFORREQUEST;
 			addEpoll (_clients[i].fd, i);
-			_clients[i].connectTime = getCurrentTime ();
+			_clients[i].setCurrentTime ();
 		}
 	}
 }
@@ -113,11 +112,6 @@ void Server::closeClientSockets ()
 		closeClientSocket (i);
 }
 
-int Server::getNumClients () const
-{
-	return _num_clients;
-}
-
 int Server::waitForEvents ()
 {
 	int n_ready_fds = epoll_wait (_fd_epoll, _ready, MAX_CONNECTIONS + 1, 0);
@@ -129,105 +123,6 @@ int Server::waitForEvents ()
 			throw SocketException ("Failed to wait for events");
 	}
 	return n_ready_fds;
-}
-
-std::string findPath (std::string const & method, std::string const & uri)
-{
-	std::string path;
-	if (method == "GET" && uri == "/")
-		path = "html/index.html";
-	else if (method == "GET" && uri == "/about")
-		path = "html/about.html";
-	else if (method == "GET" && uri == "/long")
-		path = "html/long.html";
-	else if (method == "GET" && uri == "/400")
-		path = "html/400.html";
-	else if (method == "GET" && uri == "/500")
-		path = "html/500.html";
-	else
-		path = "html/404.html";
-	return path;
-}
-
-std::string createStatusLine (std::string const & method, std::string const & uri)
-{
-	std::string statusLine;
-	if (method == "GET" && (uri == "/" || uri == "/about" || uri == "/long"))
-		statusLine = "HTTP/1.1 200 OK\r\n";
-	else if (method == "GET" && (uri == "/500"))
-		statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
-	else if (method == "GET" && (uri == "/400"))
-		statusLine = "HTTP/1.1 400 Bad Request\r\n";
-	else
-		statusLine = "HTTP/1.1 404 Not Found\r\n";
-	return statusLine;
-}
-
-std::string requestURI (std::string const & request)
-{
-	std::istringstream stream (request);
-	std::string method;
-	std::string uri;
-	stream >> method >> uri;
-	return uri;
-}
-
-std::string requestmethod (std::string const & request)
-{
-	std::istringstream stream (request);
-	std::string method;
-	stream >> method;
-	return method;
-}
-
-void Server::createResponseParts (int index)
-{
-	_clients[index].status = PREPARINGRESPONSE;
-	_clients[index].connectionType ();
-	std::cout << "Creating response for client " << index + 1 << std::endl;
-	std::string method = requestmethod (_clients[index].request);
-	std::string uri = requestURI (_clients[index].request);
-	std::string path = findPath (method, uri);
-	std::string body = readFile (path);
-
-	std::string statusLine = createStatusLine (method, uri);
-
-	std::string contentType = "Content-Type: text/html\r\n";
-	std::string connection;
-	if (_clients[index].keepAlive)
-		connection = "Connection: keep-alive\r\n";
-	else
-		connection = "Connection: close\r\n";
-
-	std::string header;
-	if (body.size () > _config.maxBodySize)
-	{
-		std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
-		header = statusLine + contentType + transferEncoding + connection;
-		_clients[index].responseParts.push_back (header + "\r\n");
-		size_t chunkSize;
-		std::string chunk;
-		std::stringstream sstream;
-		while (body.size () > 0)
-		{
-			chunkSize = std::min (body.size (), _config.maxBodySize);
-			chunk = body.substr (0, chunkSize);
-			sstream.str ("");
-			sstream << std::hex << chunkSize << "\r\n";
-			sstream << chunk << "\r\n";
-			_clients[index].responseParts.push_back (sstream.str ());
-			body = body.substr (chunkSize);
-		}
-		_clients[index].responseParts.push_back ("0\r\n\r\n");
-	}
-	else
-	{
-		std::string contentLength = "Content-Length: " + std::to_string (body.size ()) + "\r\n";
-		header = statusLine + contentType + contentLength + connection;
-		_clients[index].responseParts.push_back (header + "\r\n" + body);
-	}
-	_clients[index].status = READYTOSEND;
-	std::cout << "Response created for client " << index + 1 << std::endl;
 }
 
 void Server::sendResponseParts (ClientConnection * client)
@@ -267,7 +162,7 @@ void Server::sendResponseParts (ClientConnection * client)
 					std::cout << "Client " << index + 1 << " requested to keep connection alive. Waiting for a new rquest" << std::endl;
 					_clients[index].request.clear ();
 					_clients[index].status = WAITFORREQUEST;
-					_clients[index].connectTime = getCurrentTime ();
+					_clients[index].setCurrentTime ();
 				}
 			}
 		}
@@ -328,7 +223,7 @@ void Server::handleTimeout (int index)
 	if (_clients[index].request.empty () == false)
 	{
 		_clients[index].status = RECEIVED;
-		createResponseParts (index);
+		_clients[index].createResponseParts ();
 	}
 	else
 		closeClientSocket (index);
@@ -338,7 +233,7 @@ void Server::handleTimeouts ()
 {
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 	{
-		if (_clients[i].status > DISCONNECTED && _clients[i].status < RECEIVED && getPassedTime (i) > TIMEOUT)
+		if (_clients[i].status > DISCONNECTED && _clients[i].status < RECEIVED && _clients[i].getPassedTime () > TIMEOUT)
 			handleTimeout (i);
 	}
 }
@@ -348,7 +243,7 @@ void Server::prepareResponses ()
 	for (int i = 0; i < MAX_CONNECTIONS; ++i)
 	{
 		if (_clients[i].status == RECEIVED)
-			createResponseParts (i);
+			_clients[i].createResponseParts ();
 	}
 }
 
@@ -359,10 +254,7 @@ void Server::handleErr (struct epoll_event const & event)
 		std::cerr << "Error on listening socket" << std::endl;
 		removeEpoll (_socket_fd);
 		close (_socket_fd);
-		createSocket ();
-		makeSocketReusable ();
-		setAddress ();
-		connectToSocket ();
+		startListeningSocket ();
 	}
 	else
 	{
@@ -429,13 +321,7 @@ void Server::addEpoll (int fd, int index)
 }
 
 
-time_t Server::getPassedTime (int index) const
-{
-	time_t current_time = getCurrentTime ();
-	if (current_time == -1)
-		throw SocketException ("Failed to get passed time");
-	return (difftime (current_time, _clients[index].connectTime));
-}
+
 
 ///
 void Server::createSocket ()
@@ -498,18 +384,6 @@ void Server::removeEpoll (int fd)
 		throw SocketException ("Failed to remove epoll event");
 }
 
-
-std::string Server::readFile (std::string const & path) const
-{
-	std::ifstream file (path.c_str ());
-	if (!file.is_open ())
-		throw SocketException ("Failed to open file");
-	std::stringstream read;
-	read << file.rdbuf ();
-	file.close ();
-	return read.str ();
-}
-
 void Server::makeSocketReusable ()
 {
 	int reusable = 1;
@@ -517,10 +391,16 @@ void Server::makeSocketReusable ()
 		throw SocketException ("Failed to make socket reusable");
 }
 
-time_t Server::getCurrentTime () const
+void Server::setClientsMaxBodySize (size_t maxBodySize)
 {
-	time_t current_time = time (nullptr);
-	if (current_time == -1)
-		throw SocketException ("Failed to get current time");
-	return current_time;
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+		_clients[i].maxBodySize = maxBodySize;
+}
+
+void Server::startListeningSocket()
+{
+	createSocket ();
+	makeSocketReusable ();
+	setAddress ();
+	connectToSocket ();
 }

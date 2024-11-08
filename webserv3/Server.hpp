@@ -2,17 +2,14 @@
 #define SERVER_HPP
 
 #include <cerrno>
-#include <fstream>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <signal.h>
-#include <sstream>
 #include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#include "SocketException.hpp"
 #include "Configration.hpp"
 #include "ClientConnection.hpp"
 
@@ -37,46 +34,42 @@ class Server
 	struct epoll_event _ready[MAX_CONNECTIONS + 1];
 
 	/// ClientConnection Methods
-	time_t getPassedTime (int index) const;
-	void prepareResponses ();
-	void closeClientSocket (int index);
 	void closeClientSockets ();
-	void sendResponseParts (ClientConnection * client);
-	void receiveMessage (ClientConnection * client);
-	void createResponseParts (int index);
 	void handleTimeout (int index);
+	void closeClientSocket (int index);
+	void setClientsMaxBodySize (size_t maxBodySize);
+	void receiveMessage (ClientConnection * client);
+	void sendResponseParts (ClientConnection * client);
 
 	/// Event Handling Methods
+	int waitForEvents ();
+	int getClientStatus (struct epoll_event const & event) const;
 	int getClientIndex (struct epoll_event const & event) const;
+	void createEpoll ();
 	void handleTimeouts ();
+	void prepareResponses ();
+	void removeEpoll (int fd);
 	void handleSocketEvents ();
+	void addEpoll (int fd, int index);
 	void handleErr (struct epoll_event const & event);
 	void handleClientEvents (struct epoll_event const & event);
 	void handleListeningEvents (struct epoll_event const & event);
-	void createEpoll ();
-	void removeEpoll (int fd);
-	void addEpoll (int fd, int index);
-	int waitForEvents ();
-	int getClientStatus (struct epoll_event const & event) const;
 	
-
-	/// Utility Methods
-	static void signalHandler (int signal);
+	/// Signal Methods
 	void applyCustomSignal ();
-	std::string readFile (std::string const & path) const;
-	time_t getCurrentTime () const;
+	static void signalHandler (int signal);
 
 	/// Listening Socket Methods
 	void setAddress ();
 	void createSocket ();
 	void makeSocketReusable ();
-	void acceptClient ();
-	int getNumClients () const;
-
-      public:
-	/// Listening Socket Methods
-	Server (int port, std::string const & host, size_t maxBodySize);
 	void connectToSocket ();
+	void acceptClient ();
+	void startListeningSocket ();
+	
+      public:
+	/// Main Methods
+	Server (int port, std::string const & host, size_t maxBodySize);
 	void handleEvents ();
 	void closeSocket ();
 

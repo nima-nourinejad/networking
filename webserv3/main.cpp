@@ -4,7 +4,6 @@
 int main ()
 {
 	Server server(9001, "127.0.0.3", 1);
-	server.connectToSocket ();
 
 	try
 	{

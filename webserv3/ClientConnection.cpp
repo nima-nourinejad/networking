@@ -165,3 +165,134 @@ void ClientConnection::handleChunkedEncoding ()
 			grabChunkedData (unProcessed, chunkedSize);
 	}
 }
+
+std::string findPath (std::string const & method, std::string const & uri)
+{
+	std::string path;
+	if (method == "GET" && uri == "/")
+		path = "html/index.html";
+	else if (method == "GET" && uri == "/about")
+		path = "html/about.html";
+	else if (method == "GET" && uri == "/long")
+		path = "html/long.html";
+	else if (method == "GET" && uri == "/400")
+		path = "html/400.html";
+	else if (method == "GET" && uri == "/500")
+		path = "html/500.html";
+	else
+		path = "html/404.html";
+	return path;
+}
+
+std::string createStatusLine (std::string const & method, std::string const & uri)
+{
+	std::string statusLine;
+	if (method == "GET" && (uri == "/" || uri == "/about" || uri == "/long"))
+		statusLine = "HTTP/1.1 200 OK\r\n";
+	else if (method == "GET" && (uri == "/500"))
+		statusLine = "HTTP/1.1 500 Internal Server Error\r\n";
+	else if (method == "GET" && (uri == "/400"))
+		statusLine = "HTTP/1.1 400 Bad Request\r\n";
+	else
+		statusLine = "HTTP/1.1 404 Not Found\r\n";
+	return statusLine;
+}
+
+std::string requestURI (std::string const & request)
+{
+	std::istringstream stream (request);
+	std::string method;
+	std::string uri;
+	stream >> method >> uri;
+	return uri;
+}
+
+std::string requestmethod (std::string const & request)
+{
+	std::istringstream stream (request);
+	std::string method;
+	stream >> method;
+	return method;
+}
+
+std::string readFile (std::string const & path)
+{
+	std::ifstream file (path.c_str ());
+	if (!file.is_open ())
+		throw SocketException ("Failed to open file");
+	std::stringstream read;
+	read << file.rdbuf ();
+	file.close ();
+	return read.str ();
+}
+
+void ClientConnection::createResponseParts ()
+{
+	status = PREPARINGRESPONSE;
+	connectionType ();
+	std::cout << "Creating response for client " << index + 1 << std::endl;
+	std::string method = requestmethod (request);
+	std::string uri = requestURI (request);
+	std::string path = findPath (method, uri);
+	std::string body = readFile (path);
+
+	std::string statusLine = createStatusLine (method, uri);
+
+	std::string contentType = "Content-Type: text/html\r\n";
+	std::string connection;
+	if (keepAlive)
+		connection = "Connection: keep-alive\r\n";
+	else
+		connection = "Connection: close\r\n";
+
+	std::string header;
+	if (body.size () > maxBodySize)
+	{
+		std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
+		header = statusLine + contentType + transferEncoding + connection;
+		responseParts.push_back (header + "\r\n");
+		size_t chunkSize;
+		std::string chunk;
+		std::stringstream sstream;
+		while (body.size () > 0)
+		{
+			chunkSize = std::min (body.size (), maxBodySize);
+			chunk = body.substr (0, chunkSize);
+			sstream.str ("");
+			sstream << std::hex << chunkSize << "\r\n";
+			sstream << chunk << "\r\n";
+			responseParts.push_back (sstream.str ());
+			body = body.substr (chunkSize);
+		}
+		responseParts.push_back ("0\r\n\r\n");
+	}
+	else
+	{
+		std::string contentLength = "Content-Length: " + std::to_string (body.size ()) + "\r\n";
+		header = statusLine + contentType + contentLength + connection;
+		responseParts.push_back (header + "\r\n" + body);
+	}
+	status = READYTOSEND;
+	std::cout << "Response created for client " << index + 1 << std::endl;
+}
+
+time_t getCurrentTime ()
+{
+	time_t current_time = time (nullptr);
+	if (current_time == -1)
+		throw SocketException ("Failed to get current time");
+	return current_time;
+}
+
+time_t ClientConnection::getPassedTime () const
+{
+	time_t current_time = getCurrentTime ();
+	if (current_time == -1)
+		throw SocketException ("Failed to get passed time");
+	return (difftime (current_time, connectTime));
+}
+
+void ClientConnection::setCurrentTime ()
+{
+	connectTime = getCurrentTime ();
+}

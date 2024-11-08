@@ -5,6 +5,10 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
+#include <fstream>
+
+#include "SocketException.hpp"
 
 enum ClientStatus
 {
@@ -35,6 +39,7 @@ class ClientConnection
 	time_t connectTime;
 	std::string request;
 	std::vector<std::string> responseParts;
+	size_t maxBodySize;
 
 	/// Public Methods
 	ClientConnection ();
@@ -50,6 +55,10 @@ class ClientConnection
 	void grabChunkedData (std::string & unProcessed, size_t chunkedSize);
 	void grabChunkedHeader (std::string & unProcessed, std::string & header);
 	void handleChunkedEncoding ();
+	void createResponseParts ();
+	time_t getPassedTime () const;
+	void setCurrentTime ();
+
 
 };
 
