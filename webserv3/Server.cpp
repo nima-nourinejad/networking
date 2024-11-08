@@ -89,11 +89,6 @@ void Server::closeSocket ()
 		close (_socket_fd);
 }
 
-std::string Server::getRequest (int index) const
-{
-	return _clients[index].request;
-}
-
 void Server::closeClientSocket (int index)
 {
 	if (_clients[index].fd != -1 && index < MAX_CONNECTIONS && index >= 0)
