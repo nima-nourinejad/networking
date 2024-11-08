@@ -28,6 +28,8 @@ class ClientConnection
 	std::string request;
 	std::vector<std::string> responseParts;
 	ClientConnection ();
+	void changeRequestToBadRequest ();
+	void changeRequestToServerError ();
 };
 
 #endif

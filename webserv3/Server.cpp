@@ -285,20 +285,6 @@ void Server::sendResponseParts (ClientConnection * client)
 	}
 }
 
-void Server::changeRequestToBadRequest (int index)
-{
-	_clients[index].request.clear ();
-	_clients[index].request = "Get /400 HTTP/1.1\r\n";
-	_clients[index].status = RECEIVED;
-}
-
-void Server::changeRequestToServerError (int index)
-{
-	_clients[index].request.clear ();
-	_clients[index].request = "Get /500 HTTP/1.1\r\n";
-	_clients[index].status = RECEIVED;
-}
-
 void Server::grabChunkedHeader (std::string & unProcessed, std::string & header, int index)
 {
 	header = unProcessed.substr (0, unProcessed.find ("\r\n\r\n") + 4);
@@ -318,12 +304,12 @@ size_t Server::getChunkedSize (std::string & unProcessed, int index)
 	}
 	catch (...)
 	{
-		changeRequestToBadRequest (index);
+		_clients[index].changeRequestToBadRequest();
 		return 0;
 	}
 	if (unProcessed.size () < chunkedSize + 2)
 	{
-		changeRequestToBadRequest (index);
+		_clients[index].changeRequestToBadRequest();
 		return 0;
 	}
 	return chunkedSize;
@@ -342,9 +328,9 @@ void Server::handleChunkedEncoding (int index)
 	std::string unProcessed = _clients[index].request;
 	_clients[index].request.clear ();
 	if (unProcessed.find ("Transfer-Encoding: chunked") == std::string::npos)
-		return (changeRequestToServerError (index));
+		return (_clients[index].changeRequestToServerError ());
 	if (unProcessed.find ("\r\n0\r\n\r\n") != std::string::npos)
-		return (changeRequestToBadRequest (index));
+		return (_clients[index].changeRequestToBadRequest ());
 	std::string header = "";
 	grabChunkedHeader (unProcessed, header, index);
 
@@ -352,7 +338,7 @@ void Server::handleChunkedEncoding (int index)
 	while (true)
 	{
 		if (unProcessed.find ("\r\n") == std::string::npos)
-			return (changeRequestToBadRequest (index));
+			return (_clients[index].changeRequestToBadRequest ());
 		chunkedSize = getChunkedSize (unProcessed, index);
 		if (chunkedSize == 0)
 		{
@@ -377,7 +363,7 @@ bool Server::finishedReceivingNonChunked (int index)
 	if (contentLengthString.find ("\r\n") == std::string::npos)
 	{
 		std::cerr << "Failed to find end of content length" << std::endl;
-		changeRequestToBadRequest (index);
+		_clients[index].changeRequestToBadRequest ();
 		return true;
 	}
 	contentLengthString = contentLengthString.substr (0, contentLengthString.find ("\r\n"));
@@ -388,13 +374,13 @@ bool Server::finishedReceivingNonChunked (int index)
 	catch (...)
 	{
 		std::cerr << "Failed to convert content length to number" << std::endl;
-		changeRequestToBadRequest (index);
+		_clients[index].changeRequestToBadRequest ();
 		return true;
 	}
 	if (receivedLength (index) > contentLength)
 	{
 		std::cerr << "Received more data than expected" << std::endl;
-		changeRequestToBadRequest (index);
+		_clients[index].changeRequestToBadRequest ();
 		return true;
 	}
 	if (receivedLength (index) == contentLength)
@@ -433,7 +419,7 @@ void Server::findRequestType (int index)
 		if (_clients[index].request.size () > MAX_HEADER_SIZE)
 		{
 			std::cout << "Header size exceeded the limit" << std::endl;
-			changeRequestToBadRequest (index);
+			_clients[index].changeRequestToBadRequest ();
 		}
 	}
 	else

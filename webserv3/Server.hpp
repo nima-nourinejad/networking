@@ -41,8 +41,6 @@ class Server
 	/// ClientConnection Methods
 	time_t getPassedTime (int index) const;
 	void handleChunkedEncoding (int index);
-	void changeRequestToBadRequest (int index);
-	void changeRequestToServerError (int index);
 	void grabChunkedHeader (std::string & unProcessed, std::string & header, int index);
 	size_t getChunkedSize (std::string & unProcessed, int index);
 	void grabChunkedData (std::string & unProcessed, size_t chunkedSize, int index);
