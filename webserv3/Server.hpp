@@ -38,11 +38,10 @@ class Server
 	struct epoll_event _events[MAX_CONNECTIONS + 1];
 	struct epoll_event _ready[MAX_CONNECTIONS + 1];
 
-	/// Private Methods
+	/// ClientConnection Methods
 	std::string requestURI (std::string const & message) const;
 	std::string requestmethod (std::string const & message) const;
 	time_t getPassedTime (int index) const;
-	int getClientIndex (struct epoll_event const & event) const;
 	void handleChunkedEncoding (int index);
 	void changeRequestToBadRequest (int index);
 	void changeRequestToServerError (int index);
@@ -54,40 +53,48 @@ class Server
 	bool finishedReceivingChunked (int index);
 	bool finishedReceivingNonChunked (int index);
 	size_t receivedLength (int index) const;
-	void handleTimeouts ();
 	void prepareResponses ();
+	void findRequestType (int index);
+	std::string getRequest (int index) const;
+	void closeClientSocket (int index);
+	void closeClientSockets ();
+	void sendResponseParts (ClientConnection * client);
+	void receiveMessage (ClientConnection * client);
+	std::string findPath (std::string const & method, std::string const & uri) const;
+	void createResponseParts (int index);
+	std::string createStatusLine (std::string const & method, std::string const & uri) const;
+	void handleTimeout (int index);
+
+	/// Event Handling Methods
+	int getClientIndex (struct epoll_event const & event) const;
+	void handleTimeouts ();
 	void handleSocketEvents ();
 	void handleErr (struct epoll_event const & event);
 	void handleClientEvents (struct epoll_event const & event);
 	void handleListeningEvents (struct epoll_event const & event);
-	void findRequestType (int index);
-	void setAddress ();
-	void createSocket ();
-	static void signalHandler (int signal);
 	void createEpoll ();
 	void removeEpoll (int fd);
+	void addEpoll (int fd, int index);
+	int waitForEvents ();
+	int getClientStatus (struct epoll_event const & event) const;
+	
+	
+
+	/// Utility Methods
+	static void signalHandler (int signal);
 	void applyCustomSignal ();
 	std::string readFile (std::string const & path) const;
-	void makeSocketReusable ();
 	time_t getCurrentTime () const;
+
+	/// Listening Socket Methods
+	void setAddress ();
+	void createSocket ();
+	void makeSocketReusable ();
 	void acceptClient ();
-	std::string getRequest (int index) const;
-	void closeClientSocket (int index);
-	void closeClientSockets ();
 	int getNumClients () const;
-	void addEpoll (int fd, int index);
-	void sendResponseParts (ClientConnection * client);
-	void receiveMessage (ClientConnection * client);
-	int waitForEvents ();
-	std::string findPath (std::string const & method, std::string const & uri) const;
-	void createResponseParts (int index);
-	std::string createStatusLine (std::string const & method, std::string const & uri) const;
-	int getClientStatus (struct epoll_event const & event) const;
-	void handleTimeout (int index);
 
       public:
-	
-	/// Public Methods
+	/// Listening Socket Methods
 	Server (int port, std::string const & host, size_t maxBodySize, std::map<std::string, std::string> const & routes);
 	void connectToSocket ();
 	void handleEvents ();
