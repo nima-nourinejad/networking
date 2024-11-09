@@ -53,6 +53,7 @@ class Server
 	void prepareResponses ();
 	void removeEpoll (int fd);
 	void handleSocketEvents ();
+	void handlePendingConnections ();
 	void addEpoll (int fd, int index);
 	void handleErr (struct epoll_event const & event);
 	void handleClientEvents (struct epoll_event const & event);

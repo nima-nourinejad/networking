@@ -54,17 +54,13 @@ void Server::occupyClientSlot (int availableSlot, int fd)
 	_clients[availableSlot].setCurrentTime ();
 }
 
-void Server::acceptClient ()
+void Server::handlePendingConnections ()
 {
-	std::cout << "There are pending connections" << std::endl;
-	if (serverFull ())
-		return;
-	bool pendingConnections = true;
-	while (pendingConnections)
+	while (true)
 	{
 		int availableSlot = findAvailableSlot ();
 		if (availableSlot == -1)
-			throw SocketException ("Failed to find available slot for client");
+			throw SocketException ("Failed to find available slot for client although we have not reached max clients");
 		int fd = accept (_socket_fd, NULL, NULL);
 		if (fd == -1)
 		{
@@ -72,7 +68,6 @@ void Server::acceptClient ()
 				throw SocketException ("Failed to accept client");
 			else
 			{
-				pendingConnections = false;
 				std::cout << "No pending connections anymore" << std::endl;
 				break;
 			}
@@ -83,6 +78,21 @@ void Server::acceptClient ()
 			++_num_clients;
 			occupyClientSlot (availableSlot, fd);
 		}
+	}
+}
+
+void Server::acceptClient ()
+{
+	std::cout << "There are pending connections" << std::endl;
+	if (serverFull ())
+		return;
+	try
+	{
+		handlePendingConnections ();
+	}
+	catch (SocketException const & e)
+	{
+		e.log ();
 	}
 }
 
