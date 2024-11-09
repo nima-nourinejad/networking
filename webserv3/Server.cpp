@@ -25,52 +25,63 @@ void Server::connectToSocket ()
 	addEpoll (_socket_fd, MAX_CONNECTIONS);
 }
 
-void Server::acceptClient ()
+bool Server::serverFull () const
 {
-	std::cout << "There are pending connections" << std::endl;
 	if (_num_clients >= MAX_CONNECTIONS)
 	{
 		std::cout << "Max clients reached" << std::endl;
-		return;
+		return true;
 	}
-	bool noPendingConnections = false;
-	while (noPendingConnections == false)
-	{
-		ClientConnection temp;
+	return false;
+}
 
-		bool available = false;
-		int i;
-		for (i = 0; (i < MAX_CONNECTIONS && signal_status != SIGINT); ++i)
-		{
-			if (_clients[i].status == DISCONNECTED && _clients[i].fd == -1 && _clients[i].index == -1)
-			{
-				available = true;
-				break;
-			}
-		}
-		if (available == false)
-			throw SocketException ("Failed to find availbe slot. Contridiction wiht check of _num_clients");
-		temp.fd = accept (_socket_fd, NULL, NULL);
-		if (temp.fd == -1)
+int Server::findAvailableSlot () const
+{
+	for (int i = 0; i < MAX_CONNECTIONS; ++i)
+	{
+		if (_clients[i].status == DISCONNECTED && _clients[i].fd == -1 && _clients[i].index == -1)
+			return i;
+	}
+	return -1;
+}
+
+void Server::occupyClientSlot (int availableSlot, int fd)
+{
+	std::cout << "Accepted client " << availableSlot + 1 << ". Waiting for the rquest" << std::endl;
+	_clients[availableSlot].fd = fd;
+	_clients[availableSlot].index = availableSlot;
+	_clients[availableSlot].status = WAITFORREQUEST;
+	_clients[availableSlot].setCurrentTime ();
+}
+
+void Server::acceptClient ()
+{
+	std::cout << "There are pending connections" << std::endl;
+	if (serverFull ())
+		return;
+	bool pendingConnections = true;
+	while (pendingConnections)
+	{
+		int availableSlot = findAvailableSlot ();
+		if (availableSlot == -1)
+			throw SocketException ("Failed to find available slot for client");
+		int fd = accept (_socket_fd, NULL, NULL);
+		if (fd == -1)
 		{
 			if (errno != EAGAIN)
 				throw SocketException ("Failed to accept client");
 			else
 			{
-				noPendingConnections = true;
+				pendingConnections = false;
 				std::cout << "No pending connections anymore" << std::endl;
 				break;
 			}
 		}
 		else
 		{
-			std::cout << "Accepted client " << i + 1 << ". Waiting for the rquest" << std::endl;
-			_clients[i].fd = temp.fd;
-			_clients[i].index = i;
+			addEpoll (fd, availableSlot);
 			++_num_clients;
-			_clients[i].status = WAITFORREQUEST;
-			addEpoll (_clients[i].fd, i);
-			_clients[i].setCurrentTime ();
+			occupyClientSlot (availableSlot, fd);
 		}
 	}
 }

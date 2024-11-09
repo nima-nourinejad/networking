@@ -34,6 +34,7 @@ class Server
 	struct epoll_event _ready[MAX_CONNECTIONS + 1];
 
 	/// ClientConnection Methods
+	void occupyClientSlot (int availbleSlot, int fd);
 	void closeClientSockets ();
 	void handleTimeout (int index);
 	void closeClientSocket (int index);
@@ -43,8 +44,10 @@ class Server
 
 	/// Event Handling Methods
 	int waitForEvents ();
+	int findAvailableSlot () const;
 	int getClientStatus (struct epoll_event const & event) const;
 	int getClientIndex (struct epoll_event const & event) const;
+	bool serverFull () const;
 	void createEpoll ();
 	void handleTimeouts ();
 	void prepareResponses ();
