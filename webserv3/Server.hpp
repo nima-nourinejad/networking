@@ -6,9 +6,6 @@
 #include <netinet/in.h>
 #include <signal.h>
 #include <sys/epoll.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include "Configration.hpp"
 #include "ClientConnection.hpp"

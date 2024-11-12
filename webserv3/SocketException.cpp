@@ -1,7 +1,22 @@
 #include "SocketException.hpp"
 
+int findType (std::string const & message)
+{
+	if (message == "Failed to find available slot for client")
+		return FIND_EMPTY_SLOT;
+	else if (message == "Failed to accept client")
+		return ACCEPT_CLIENT;
+	else if (message == "Failed to add to epoll")
+		return ADD_EPOLL;
+	return -1;
+}
+
 SocketException::SocketException (std::string const & message)
-    : std::runtime_error (message + " : " + strerror (errno)){};
+    : std::runtime_error (message + " : " + strerror (errno)), type (findType (message)), open_fd (-1){}
+
+SocketException::SocketException (std::string const & message, int open_fd)
+	: std::runtime_error (message + " : " + strerror (errno)), type (findType (message)), open_fd (open_fd) {}
+
 void SocketException::log () const
 {
 	try

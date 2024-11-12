@@ -7,6 +7,10 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
 
 #include "SocketException.hpp"
 
@@ -58,6 +62,7 @@ class ClientConnection
 	void createResponseParts ();
 	time_t getPassedTime () const;
 	void setCurrentTime ();
+	static void sendServerError (int fd, size_t maxBodySize);
 
 
 };

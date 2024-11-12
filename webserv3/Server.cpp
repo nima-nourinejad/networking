@@ -60,7 +60,7 @@ void Server::handlePendingConnections ()
 	{
 		int availableSlot = findAvailableSlot ();
 		if (availableSlot == -1)
-			throw SocketException ("Failed to find available slot for client although we have not reached max clients");
+			throw SocketException ("Failed to find available slot for client");
 		int fd = accept (_socket_fd, NULL, NULL);
 		if (fd == -1)
 		{
@@ -93,6 +93,11 @@ void Server::acceptClient ()
 	catch (SocketException const & e)
 	{
 		e.log ();
+		if (e.type == ADD_EPOLL)
+		{
+			if (e.open_fd != -1)
+				ClientConnection::sendServerError (e.open_fd, _config.maxBodySize);
+		}
 	}
 }
 
@@ -338,7 +343,7 @@ void Server::addEpoll (int fd, int index)
 		_events[index].data.ptr = &_clients[index];
 	}
 	if (epoll_ctl (_fd_epoll, EPOLL_CTL_ADD, fd, _events + index) == -1)
-		throw SocketException ("Failed to add listening port to epoll event");
+		throw SocketException ("Failed to add to epoll", fd);
 }
 
 void Server::createSocket ()
