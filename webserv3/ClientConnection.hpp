@@ -63,6 +63,7 @@ class ClientConnection
 	time_t getPassedTime () const;
 	void setCurrentTime ();
 	static void sendServerError (int fd, size_t maxBodySize);
+	static void sendServiceUnavailable (int socket_fd, size_t maxBodySize);
 
 
 };

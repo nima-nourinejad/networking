@@ -226,6 +226,64 @@ std::string readFile (std::string const & path)
 	return read.str ();
 }
 
+void ClientConnection::sendServiceUnavailable(int socket_fd, size_t maxBodySize)
+{
+	int temp_fd = accept(socket_fd, nullptr, nullptr);
+	if (temp_fd == -1)
+		return;
+
+	std::string statusLine = "HTTP/1.1 503 Service Unavailable\r\n";
+	std::string contentType = "Content-Type: text/html\r\n";
+	std::string connection = "Connection: close\r\n";
+	std::string body = readFile ("html/503.html");
+	std::string header;
+	std::vector<std::string> response;
+	
+	if (body.size () > maxBodySize)
+	{
+		std::string transferEncoding = "Transfer-Encoding: chunked\r\n";
+		header = statusLine + contentType + transferEncoding + connection;
+		response.push_back (header + "\r\n");
+		size_t chunkSize;
+		std::string chunk;
+		std::stringstream sstream;
+		while (body.size () > 0)
+		{
+			chunkSize = std::min (body.size (), maxBodySize);
+			chunk = body.substr (0, chunkSize);
+			sstream.str ("");
+			sstream << std::hex << chunkSize << "\r\n";
+			sstream << chunk << "\r\n";
+			response.push_back (sstream.str ());
+			body = body.substr (chunkSize);
+		}
+		response.push_back ("0\r\n\r\n");
+	}
+	else
+	{
+		std::string contentLength = "Content-Length: " + std::to_string (body.size ()) + "\r\n";
+		header = statusLine + contentType + contentLength + connection;
+		response.push_back (header + "\r\n" + body);
+	}
+
+	while (response.size () > 0)
+	{
+		ssize_t bytes_sent;
+		bytes_sent = send (temp_fd, response[0].c_str (), response[0].size (), MSG_DONTWAIT);
+		if (bytes_sent <= 0)
+			break;
+		if (bytes_sent < static_cast<ssize_t> (response[0].size ()))
+		{
+			std::string remainPart = response[0].substr (bytes_sent);
+			response[0] = remainPart;
+		}
+		else
+			response.erase (response.begin ());
+	}
+	close (temp_fd);
+
+}
+
 void ClientConnection::sendServerError (int fd, size_t maxBodySize)
 {
 	std::string statusLine = "HTTP/1.1 500 Internal Server Error\r\n";

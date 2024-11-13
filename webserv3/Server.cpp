@@ -61,7 +61,7 @@ void Server::handlePendingConnections ()
 		int availableSlot = findAvailableSlot ();
 		if (availableSlot == -1)
 			throw SocketException ("Failed to find available slot for client");
-		int fd = accept (_socket_fd, NULL, NULL);
+		int fd = accept (_socket_fd, nullptr, nullptr);
 		if (fd == -1)
 		{
 			if (errno != EAGAIN)
@@ -85,7 +85,10 @@ void Server::acceptClient ()
 {
 	std::cout << "There are pending connections" << std::endl;
 	if (serverFull ())
+	{
+		ClientConnection::sendServiceUnavailable (_socket_fd, _config.maxBodySize);
 		return;
+	}
 	try
 	{
 		handlePendingConnections ();
