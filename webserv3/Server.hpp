@@ -19,6 +19,7 @@ class Server
 	static constexpr int MAX_CONNECTIONS = 5;
 	static constexpr int BACKLOG = (2 * MAX_CONNECTIONS);
 	static constexpr int TIMEOUT = 10;
+	static constexpr int MAX_RETRY = 5;
 
 	/// Private Attributes
 	int _socket_fd;
@@ -29,6 +30,7 @@ class Server
 	ClientConnection _clients[MAX_CONNECTIONS];
 	struct epoll_event _events[MAX_CONNECTIONS + 1];
 	struct epoll_event _ready[MAX_CONNECTIONS + 1];
+	int _retry;
 
 	/// ClientConnection Methods
 	void occupyClientSlot (int availbleSlot, int fd);

@@ -421,8 +421,26 @@ void Server::setClientsMaxBodySize (size_t maxBodySize)
 
 void Server::startListeningSocket()
 {
-	createSocket ();
-	makeSocketReusable ();
-	setAddress ();
-	connectToSocket ();
+
+	_retry = 0;
+	bool success = false;
+
+	while (signal_status != SIGINT && !success && _retry < MAX_RETRY)
+	{
+		try
+		{
+			createSocket ();
+			makeSocketReusable ();
+			setAddress ();
+			connectToSocket ();
+			success = true;
+		}
+		catch (SocketException const & e)
+		{
+			e.log ();
+			if (_socket_fd != -1)
+				close (_socket_fd);
+			++_retry;
+		}
+	}
 }
