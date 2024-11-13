@@ -294,7 +294,7 @@ void ClientConnection::createResponseParts ()
 
 	std::string contentType = "Content-Type: text/html\r\n";
 	std::string connection;
-	if (keepAlive && uri != "/500")
+	if (keepAlive)
 		connection = "Connection: keep-alive\r\n";
 	else
 		connection = "Connection: close\r\n";
